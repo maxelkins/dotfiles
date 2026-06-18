@@ -33,6 +33,10 @@ alias dcdown='docker compose down'
 # asdf version manager
 . /opt/homebrew/opt/asdf/libexec/asdf.sh
 
+# Ghostty config
+# Add missing termifo https://ghostty.org/docs/help/terminfo
+export TERM=xterm-256color
+
 # -------
 # Custom PS1
 # -------
