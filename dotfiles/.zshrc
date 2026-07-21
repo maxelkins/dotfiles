@@ -21,6 +21,9 @@ source $ZSH/oh-my-zsh.sh
 export PATH=/opt/homebrew/bin:$PATH
 export HOMEBREW_NO_ENV_HINTS=1
 
+# asdf condig
+export PATH="${ASDF_DATA_DIR:-$HOME/.asdf}/shims:$PATH"
+
 # Aliases
 alias gl='git log --graph --oneline'
 alias ga='git add .'
