@@ -12,8 +12,8 @@ This will:
 
 - Install Homebrew and all packages/casks from `Brewfile`
 - Install Oh My Zsh
-- Symlink your top-level dotfiles (e.g. `.zshrc`, `.gitconfig`)
-- Copy app config for Karabiner, Ghostty, etc.
+- Symlink top-level dotfiles and standalone `~/.config` files (e.g. `.zshrc`, `.gitconfig`, `starship.toml`)
+- Copy app config directories for Karabiner, Ghostty, etc.
 - Apply macOS system preferences
 
 **Restart your terminal** for all changes to take effect.

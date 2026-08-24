@@ -26,9 +26,29 @@ for file in "$DOTFILES_DIR"/.*; do
 done
 
 
-# Copy ~/.config/* subdirectories
+# Link ~/.config/* files and copy app config subdirectories.
 if [ -d "$DOTFILES_DIR/config" ]; then
   mkdir -p "$HOME/.config"
+
+  for file in "$DOTFILES_DIR/config"/*; do
+    [ -f "$file" ] || continue
+    name=$(basename "$file")
+    target="$HOME/.config/$name"
+
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+      backup_file="${target}.bak"
+      if [ -e "$backup_file" ]; then
+        timestamp=$(date +%Y%m%d%H%M%S)
+        backup_file="${target}.bak.$timestamp"
+      fi
+      echo "    Backing up $target → $backup_file"
+      mv "$target" "$backup_file"
+    fi
+
+    ln -sf "$file" "$target"
+    echo "    Linked ~/.config/$name"
+  done
+
   for dir in "$DOTFILES_DIR/config"/*/; do
     name=$(basename "$dir")
     target="$HOME/.config/$name"
