@@ -13,6 +13,7 @@ This will:
 - Install Homebrew and all packages/casks from `Brewfile`
 - Install Oh My Zsh
 - Symlink top-level dotfiles and standalone `~/.config` files (e.g. `.zshrc`, `.gitconfig`, `starship.toml`)
+- Symlink safe Pi settings, extensions, the Cobalt2 theme, and Zentui configuration while leaving auth and sessions private
 - Copy app config directories for Karabiner, Ghostty, etc.
 - Apply macOS system preferences
 
@@ -23,6 +24,14 @@ This will:
 - Edit files in `dotfiles/` to change your shell, git, or app config.
 - Edit `scripts/macos.sh` to tweak macOS settings.
 - Add/remove Homebrew packages in `Brewfile`.
+
+## Pi appearance
+
+Pi uses the native `cobalt2` theme from `dotfiles/pi/agent/themes/`, a compact
+welcome card from `dotfiles/pi/agent/extensions/`, and the `pi-zentui` package
+for a responsive Starship-style footer and Opencode editor metadata showing
+model, provider, and thinking effort. Safe Pi settings are tracked under
+`dotfiles/pi/agent/`; authentication and session data are not.
 
 ## Nerd Font fallback
 

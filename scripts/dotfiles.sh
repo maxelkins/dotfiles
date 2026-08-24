@@ -68,6 +68,35 @@ if [ -d "$DOTFILES_DIR/config" ]; then
   done
 fi
 
+# Link safe Pi settings, extensions, and themes (never auth or sessions).
+PI_AGENT_DIR="$DOTFILES_DIR/pi/agent"
+if [ -d "$PI_AGENT_DIR" ]; then
+  mkdir -p "$HOME/.pi/agent/extensions" "$HOME/.pi/agent/themes"
+
+  for file in "$PI_AGENT_DIR"/*.json "$PI_AGENT_DIR/extensions"/*.ts "$PI_AGENT_DIR/themes"/*.json; do
+    [ -f "$file" ] || continue
+
+    case "$file" in
+      "$PI_AGENT_DIR/extensions"/*) target="$HOME/.pi/agent/extensions/$(basename "$file")" ;;
+      "$PI_AGENT_DIR/themes"/*) target="$HOME/.pi/agent/themes/$(basename "$file")" ;;
+      *) target="$HOME/.pi/agent/$(basename "$file")" ;;
+    esac
+
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+      backup_file="${target}.bak"
+      if [ -e "$backup_file" ]; then
+        timestamp=$(date +%Y%m%d%H%M%S)
+        backup_file="${target}.bak.$timestamp"
+      fi
+      echo "    Backing up $target → $backup_file"
+      mv "$target" "$backup_file"
+    fi
+
+    ln -sf "$file" "$target"
+    echo "    Linked ${target/#$HOME/~}"
+  done
+fi
+
 # Copy ~/Library/Application Support/* app config dirs
 LIBRARY_APP_SUPPORT="$DOTFILES_DIR/Library/Application Support"
 if [ -d "$LIBRARY_APP_SUPPORT" ]; then

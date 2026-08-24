@@ -1,0 +1,105 @@
+{
+  "projectRefreshIntervalMs": 30000,
+  "components": {
+    "editor": {
+      "enabled": true,
+      "style": "opencode",
+      "colorSource": "theme",
+      "borderColorMode": "static",
+      "modelLabel": "id",
+      "viewportIndicators": true,
+      "styles": {
+        "opencode": {
+          "metadataFormat": "$model  $provider(  $thinking)",
+          "completionMenu": "palette"
+        }
+      }
+    },
+    "userMessages": {
+      "enabled": false
+    },
+    "workingLine": {
+      "enabled": false
+    },
+    "selectorBorders": {
+      "enabled": false
+    },
+    "footer": {
+      "style": "starship",
+      "colorSource": "theme",
+      "modelLabel": "id",
+      "styles": {
+        "starship": {
+          "format": "$cwd(  $runtime)(  $git_branch)( $git_status)$fill$context($sep$tokens)($sep$cost)",
+          "responsive": true,
+          "compactFormat": "$cwd$wrap$runtime$wrap$git_branch $git_status$wrap$context$wrap_sep$tokens$wrap_sep$cost",
+          "compactMaxLines": 2,
+          "separator": "pipe",
+          "contextStyle": "text+gauge",
+          "contextThresholds": {
+            "warning": 70,
+            "error": 90
+          },
+          "pathDisplay": {
+            "mode": "basename",
+            "depth": 0
+          },
+          "segments": {
+            "cwd": true,
+            "sessionName": false,
+            "gitBranch": true,
+            "gitStatus": true,
+            "gitCounts": false,
+            "runtime": true,
+            "modelInfo": false,
+            "context": true,
+            "tokens": true,
+            "cost": true,
+            "sessionDuration": false,
+            "username": false,
+            "time": false,
+            "os": false,
+            "packageVersion": false,
+            "gitCommit": false,
+            "gitMetrics": false
+          },
+          "gitBranch": {
+            "maxLength": "full"
+          },
+          "extensionStatuses": {
+            "defaultPlacement": "off",
+            "placements": {},
+            "colorModes": {}
+          }
+        }
+      }
+    }
+  },
+  "icons": {
+    "mode": "auto",
+    "cwd": "",
+    "git": "",
+    "ahead": ">",
+    "behind": "<",
+    "diverged": "<>",
+    "conflicted": "=",
+    "untracked": "?",
+    "stashed": "",
+    "modified": "!",
+    "staged": "+",
+    "renamed": "r",
+    "deleted": "x",
+    "typechanged": "t"
+  },
+  "colors": {
+    "cwd": "bold syntaxFunction",
+    "gitBranch": "bold borderAccent",
+    "gitStatus": "bold warning",
+    "contextNormal": "muted",
+    "contextWarning": "bold warning",
+    "contextError": "bold error",
+    "tokens": "dim",
+    "cost": "bold success",
+    "separator": "dim"
+  }
+}
