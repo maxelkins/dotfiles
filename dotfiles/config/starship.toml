@@ -31,45 +31,45 @@ format = "[@$hostname]($style) "
 style = "bold blue"
 read_only = " (read-only)"
 read_only_style = "red"
-format = "[$path]($style)[$read_only]($read_only_style)"
+format = "[  $path]($style)[$read_only]($read_only_style)"
 truncation_length = 1
 truncate_to_repo = true
 truncation_symbol = ""
 home_symbol = "~"
 
-# Show detected runtime names and versions.
+# Nerd Font icons with runtime versions and each module's native color.
 [nodejs]
-symbol = "node"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [bun]
-symbol = "bun"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [deno]
-symbol = "deno"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [python]
-symbol = "python"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [rust]
-symbol = "rust"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [golang]
-symbol = "go"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 [ruby]
-symbol = "ruby"
-format = "  [$symbol $version](yellow)"
+symbol = ""
+format = "  [$symbol $version]($style)"
 
 # Together these render as: [branch + ?]
 [git_branch]
 style = "cyan"
-format = '  [\[$branch]($style)'
+format = '  [\[  $branch]($style)'
 truncation_length = 32
 truncation_symbol = "..."
 
@@ -95,5 +95,5 @@ deleted = " [x${count}](red)"
 typechanged = " [t${count}](red)"
 
 [character]
-success_symbol = "[->](bold green)"
-error_symbol = "[->](bold green)"
+success_symbol = "[](bold green)"
+error_symbol = "[](bold green)"

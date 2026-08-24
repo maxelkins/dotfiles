@@ -20,6 +20,7 @@ brew "dockutil"
 
 # Casks
 cask "ghostty"
+cask "font-jetbrains-mono-nerd-font"
 cask "raycast"
 cask "rectangle"
 cask "alt-tab"

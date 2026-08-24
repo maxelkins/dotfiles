@@ -24,6 +24,13 @@ This will:
 - Edit `scripts/macos.sh` to tweak macOS settings.
 - Add/remove Homebrew packages in `Brewfile`.
 
+## Nerd Font fallback
+
+Starship uses Nerd Font icons. Ghostty keeps Monaco as its primary font and uses
+JetBrains Mono Nerd Font Mono for missing glyphs. In iTerm2, enable **Use a
+different font for non-ASCII text** under **Profiles → Text** and select
+**JetBrainsMonoNL Nerd Font Mono**.
+
 ## Notes
 
 - Existing dotfiles are backed up as `*.bak` before being replaced.
