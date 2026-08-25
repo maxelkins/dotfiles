@@ -1,7 +1,7 @@
 onboarding = false
 [theme]
-# Cobalt2 base with explicit overrides for every Herdr color token.
-name = "catppuccin"
+# Use the terminal palette as the base, then apply explicit Cobalt2 overrides.
+name = "terminal"
 auto_switch = false
 
 [theme.custom]
