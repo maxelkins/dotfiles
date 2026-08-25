@@ -30,8 +30,9 @@ This will:
 Pi uses the native `cobalt2` theme from `dotfiles/pi/agent/themes/`, a compact
 welcome card from `dotfiles/pi/agent/extensions/`, and the `pi-zentui` package
 for a responsive Starship-style footer and Opencode editor metadata showing
-model, provider, and thinking effort. Safe Pi settings are tracked under
-`dotfiles/pi/agent/`; authentication and session data are not.
+model, provider, and thinking effort. Safe Pi settings and global agent
+instructions are tracked under `dotfiles/pi/agent/`; authentication and session
+data are not.
 
 ## Nerd Font fallback
 

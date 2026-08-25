@@ -73,7 +73,7 @@ PI_AGENT_DIR="$DOTFILES_DIR/pi/agent"
 if [ -d "$PI_AGENT_DIR" ]; then
   mkdir -p "$HOME/.pi/agent/extensions" "$HOME/.pi/agent/themes"
 
-  for file in "$PI_AGENT_DIR"/*.json "$PI_AGENT_DIR/extensions"/*.ts "$PI_AGENT_DIR/themes"/*.json; do
+  for file in "$PI_AGENT_DIR"/*.json "$PI_AGENT_DIR"/*.md "$PI_AGENT_DIR/extensions"/*.ts "$PI_AGENT_DIR/themes"/*.json; do
     [ -f "$file" ] || continue
 
     case "$file" in
