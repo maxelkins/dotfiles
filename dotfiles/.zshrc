@@ -60,8 +60,8 @@ export PATH="$PATH:/Users/max.elkins/.lmstudio/bin"
 
 # 1password tokens
 # export GITHUB_TOKEN="$(op read 'op://Employee/GITHUB_TOKEN/credential')"
-export GITHUB_TOKEN="op://Employee/GITHUB_TOKEN/credential"
-export NPM_AUTH_TOKEN=$GITHUB_TOKEN
+# export GITHUB_TOKEN="op://Employee/GITHUB_TOKEN/credential"
+# export NPM_AUTH_TOKEN=$GITHUB_TOKEN
 
 
 # Enable history sharing between sessions (zsh equivalent of bash history commands)
@@ -89,3 +89,6 @@ _starship_blank_line_precmd() {
 }
 add-zsh-hook preexec _starship_blank_line_preexec
 add-zsh-hook precmd _starship_blank_line_precmd
+
+# Load 1Password shell plugins, including secure GitHub CLI authentication.
+source /Users/max.elkins/.config/op/plugins.sh
