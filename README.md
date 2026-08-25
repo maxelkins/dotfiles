@@ -13,6 +13,7 @@ This will:
 - Install Homebrew and all packages/casks from `Brewfile`
 - Install Oh My Zsh
 - Symlink top-level dotfiles and standalone `~/.config` files (e.g. `.zshrc`, `.gitconfig`, `starship.toml`)
+- Symlink Herdr's `config.toml` while leaving logs, plugins, sessions, and runtime state local
 - Symlink safe Pi settings, extensions, the Cobalt2 theme, and Zentui configuration while leaving auth and sessions private
 - Copy app config directories for Karabiner, Ghostty, etc.
 - Apply macOS system preferences

@@ -1,0 +1,46 @@
+onboarding = false
+[theme]
+# Cobalt2 base with explicit overrides for every Herdr color token.
+name = "catppuccin"
+auto_switch = false
+
+[theme.custom]
+accent = "#6ae3fa"
+panel_bg = "#18354f"
+sidebar_bg = "#132738"
+active_row_bg = "#18354f"
+selection_bg = "#214b68"
+surface0 = "#172f43"
+surface1 = "#214b68"
+surface_dim = "#102331"
+overlay0 = "#61798b"
+overlay1 = "#9ca9b3"
+text = "#ffffff"
+subtext0 = "#9ca9b3"
+mauve = "#ff005d"
+green = "#3ad900"
+yellow = "#ffc600"
+red = "#ff2600"
+blue = "#0088ff"
+teal = "#00bbbb"
+peach = "#ff9d00"
+
+[ui.sidebar.agents]
+rows = [
+  ["state_icon", "workspace", { token = "tab", fg = "#ffffff", dim = true }],
+  [{ token = "agent", fg = "#ffffff", dim = true }],
+]
+
+[keys]
+# Ctrl+Backslash enters Herdr prefix mode.
+prefix = "ctrl+backslash"
+
+[ui]
+show_agent_labels_on_pane_borders = true
+status_indicators = "symbols"
+
+[[keys.command]]
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-navigator.open"
+description = "jump to anything"

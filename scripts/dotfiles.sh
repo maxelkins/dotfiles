@@ -53,6 +53,29 @@ if [ -d "$DOTFILES_DIR/config" ]; then
     name=$(basename "$dir")
     target="$HOME/.config/$name"
 
+    # Herdr keeps runtime state beside config.toml, so link only tracked files.
+    if [ "$name" = "herdr" ]; then
+      mkdir -p "$target"
+      for file in "$dir"*; do
+        [ -f "$file" ] || continue
+        target_file="$target/$(basename "$file")"
+
+        if [ -f "$target_file" ] && [ ! -L "$target_file" ]; then
+          backup_file="${target_file}.bak"
+          if [ -e "$backup_file" ]; then
+            timestamp=$(date +%Y%m%d%H%M%S)
+            backup_file="${target_file}.bak.$timestamp"
+          fi
+          echo "    Backing up $target_file → $backup_file"
+          mv "$target_file" "$backup_file"
+        fi
+
+        ln -sf "$file" "$target_file"
+        echo "    Linked ~/.config/herdr/$(basename "$file")"
+      done
+      continue
+    fi
+
     if [ -d "$target" ] && [ ! -L "$target" ]; then
       backup_dir="${target}.bak"
       if [ -e "$backup_dir" ]; then
