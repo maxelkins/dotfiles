@@ -63,7 +63,7 @@ Run `dot help` for the current command list.
 
 Every machine installs `packages/bundle`. One saved profile adds either `packages/bundle.personal` or `packages/bundle.work`; choose `base` to install neither optional bundle.
 
-On the first `dot init`, choose `base`, `personal`, or `work` at the prompt. For unattended setup, pass the choice explicitly:
+Every interactive `dot init` asks for `base`, `personal`, or `work`, using the saved profile as its default. Press Enter to keep the current selection. For unattended setup, pass the choice explicitly:
 
 ```sh
 ./dot init --profile work

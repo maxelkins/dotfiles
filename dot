@@ -56,7 +56,7 @@ cmd_init() {
 
   require_macos
   local profile
-  profile="$(choose_initial_profile "$requested_profile")"
+  profile="$(choose_profile_for_init "$requested_profile")"
   save_profile "$profile"
 
   info "Installing mac-setup"

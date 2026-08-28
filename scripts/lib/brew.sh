@@ -36,10 +36,8 @@ save_profile() {
   success "saved package profile: $profile"
 }
 
-choose_initial_profile() {
+choose_profile_for_init() {
   local requested="${1:-}"
-  local file
-  file="$(profile_file)"
 
   if [[ -n "$requested" ]]; then
     validate_profile "$requested"
@@ -47,20 +45,20 @@ choose_initial_profile() {
     return 0
   fi
 
-  if [[ -f "$file" ]]; then
-    current_profile
-    return 0
+  local default_profile="base"
+  if [[ -f "$(profile_file)" ]]; then
+    default_profile="$(current_profile)"
   fi
 
   if [[ ! -t 0 ]]; then
-    printf 'base\n'
+    printf '%s\n' "$default_profile"
     return 0
   fi
 
   local choice
-  printf 'Package profile [base/personal/work] (base): ' >&2
+  printf 'Package profile [base/personal/work] (%s): ' "$default_profile" >&2
   IFS= read -r choice
-  choice="${choice:-base}"
+  choice="${choice:-$default_profile}"
   validate_profile "$choice"
   printf '%s\n' "$choice"
 }

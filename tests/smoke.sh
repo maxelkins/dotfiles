@@ -102,7 +102,7 @@ fi
 rm "$HOME/.zshrc"
 export FAKE_BREW_FAIL_BUNDLE=1
 init_output="${TEST_ROOT}/init-output.log"
-if "$ROOT/dot" init --profile work >"$init_output" 2>&1; then
+if "$ROOT/dot" init >"$init_output" 2>&1; then
   printf 'init unexpectedly succeeded after a package failure\n' >&2
   exit 1
 fi
