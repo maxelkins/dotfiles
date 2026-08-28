@@ -110,3 +110,5 @@ Run syntax checks separately when changing shell scripts:
 ```sh
 bash -n dot scripts/*.sh scripts/lib/*.sh tests/*.sh
 ```
+
+_Credit: Thanks to [dmmulroy](https://github.com/dmmulroy/.dotfiles) for the inspiration_
