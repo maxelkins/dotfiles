@@ -1,0 +1,13 @@
+title = "mac-setup secret scanning"
+
+[extend]
+useDefault = true
+
+# A file whose entire value is a 1Password reference is safe to track. Matching
+# a complete line keeps this exception from hiding a real secret beside a URI.
+[[allowlists]]
+description = "standalone 1Password secret references"
+regexTarget = "line"
+regexes = [
+  '''^\s*(?:export\s+[A-Za-z_][A-Za-z0-9_]*=)?["']?op://[A-Za-z0-9._-]+/[A-Za-z0-9._ -]+/[A-Za-z0-9._ -]+["']?\s*$'''
+]

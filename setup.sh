@@ -8,6 +8,7 @@ echo "  Mac Setup"
 echo "================================================"
 
 bash "$SCRIPT_DIR/scripts/homebrew.sh"
+bash "$SCRIPT_DIR/scripts/git-hooks.sh"
 bash "$SCRIPT_DIR/scripts/ohmyzsh.sh"
 bash "$SCRIPT_DIR/scripts/dotfiles.sh"
 bash "$SCRIPT_DIR/scripts/macos.sh"

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${SKIP_GITLEAKS:-0}" = "1" ]; then
+  echo "warning: skipping Gitleaks because SKIP_GITLEAKS=1" >&2
+  exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "error: Gitleaks is required. Run 'brew install gitleaks'." >&2
+  exit 1
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+echo "Scanning staged changes for secrets..."
+if ! gitleaks git --staged --redact --verbose --config "$repo_root/.gitleaks.toml"; then
+  cat >&2 <<'EOF'
+Commit blocked by Gitleaks. Review the rule and file shown above, then remove or
+replace the value. Run the same check with:
+
+  gitleaks git --staged --redact --verbose --config .gitleaks.toml
+
+If this is a reviewed false positive, update .gitleaks.toml with the narrowest
+possible exception. For an urgent, explicit bypass, use SKIP_GITLEAKS=1 and
+explain the bypass in the pull request.
+EOF
+  exit 1
+fi
