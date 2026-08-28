@@ -62,11 +62,12 @@ export PATH="/opt/homebrew/opt/asdf/bin:$HOME/.asdf/shims:$PATH"
 # Added by LM Studio CLI (lms)
 export PATH="$PATH:/Users/max.elkins/.lmstudio/bin"
 
-# 1password tokens
+# 1Password references are safe here. Put raw or resolved values in the ignored
+# ~/.zshrc.secrets file instead.
 # export GITHUB_TOKEN="$(op read 'op://Employee/GITHUB_TOKEN/credential')"
 # export GITHUB_TOKEN="op://Employee/GITHUB_TOKEN/credential"
 # export NPM_AUTH_TOKEN=$GITHUB_TOKEN
-
+[[ -f "$HOME/.zshrc.secrets" ]] && source "$HOME/.zshrc.secrets"
 
 # Enable history sharing between sessions (zsh equivalent of bash history commands)
 setopt SHARE_HISTORY

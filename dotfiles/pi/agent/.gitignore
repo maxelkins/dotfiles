@@ -1,0 +1,13 @@
+# Pi stores credentials and machine state beside tracked config. Deny new files
+# by default, then allow only paths reviewed for publication.
+*
+!.gitignore
+!AGENTS.md
+!settings.json
+!zentui.json
+!extensions/
+extensions/*
+!extensions/welcome-header.ts
+!themes/
+themes/*
+!themes/cobalt2.json

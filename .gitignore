@@ -1,1 +1,32 @@
+# macOS
 .DS_Store
+
+# Local environment and shell secrets
+.env
+.env.*
+*.secrets
+*.secrets.*
+dotfiles/.zshrc.secrets
+
+# Private keys and certificates
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Credential exports and authentication state
+credentials.json
+credentials.*.json
+*_credentials.json
+auth.json
+sessions/
+session.json
+.cache/
+cache/
+
+# Tool state that may contain tokens
+.claude/
+.pi/
+.op/
