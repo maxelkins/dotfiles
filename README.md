@@ -14,6 +14,7 @@ This will:
 - Install Oh My Zsh
 - Symlink top-level dotfiles and standalone `~/.config` files (e.g. `.zshrc`, `.gitconfig`, `starship.toml`)
 - Symlink Herdr's `config.toml` while leaving logs, plugins, sessions, and runtime state local
+- Symlink the tracked agent skills to `~/.agents/skills` and expose them to Claude Code while preserving Claude-only skills
 - Symlink safe Pi settings, extensions, the Cobalt2 theme, and Zentui configuration while leaving auth and sessions private
 - Copy app config directories for Karabiner, Ghostty, etc.
 - Apply macOS system preferences
@@ -25,6 +26,14 @@ This will:
 - Edit files in `dotfiles/` to change your shell, git, or app config.
 - Edit `scripts/macos.sh` to tweak macOS settings.
 - Add/remove Homebrew packages in `Brewfile`.
+
+## Agent skills
+
+Shared skills live under `dotfiles/agents/skills/`. Setup links that directory to
+`~/.agents/skills`, links the Skills CLI lock file, and adds per-skill links under
+`~/.claude/skills`. Claude-only skills already present in that directory are left
+untouched. Pi and other Agent Skills-compatible tools read `~/.agents/skills`
+directly.
 
 ## Pi appearance
 

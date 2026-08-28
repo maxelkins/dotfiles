@@ -91,6 +91,58 @@ if [ -d "$DOTFILES_DIR/config" ]; then
   done
 fi
 
+# Link shared agent skills from the repository. Keep harness-specific skills
+# alongside them, and expose the shared set to Claude Code explicitly.
+AGENTS_DIR="$DOTFILES_DIR/agents"
+if [ -d "$AGENTS_DIR/skills" ]; then
+  mkdir -p "$HOME/.agents"
+
+  target="$HOME/.agents/skills"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    backup_dir="${target}.bak"
+    if [ -e "$backup_dir" ]; then
+      timestamp=$(date +%Y%m%d%H%M%S)
+      backup_dir="${target}.bak.$timestamp"
+    fi
+    echo "    Backing up $target → $backup_dir"
+    mv "$target" "$backup_dir"
+  fi
+
+  ln -sfn "$AGENTS_DIR/skills" "$target"
+  echo "    Linked ~/.agents/skills"
+
+  if [ -f "$AGENTS_DIR/.skill-lock.json" ]; then
+    target="$HOME/.agents/.skill-lock.json"
+    if [ -f "$target" ] && [ ! -L "$target" ]; then
+      backup_file="${target}.bak"
+      if [ -e "$backup_file" ]; then
+        timestamp=$(date +%Y%m%d%H%M%S)
+        backup_file="${target}.bak.$timestamp"
+      fi
+      echo "    Backing up $target → $backup_file"
+      mv "$target" "$backup_file"
+    fi
+
+    ln -sf "$AGENTS_DIR/.skill-lock.json" "$target"
+    echo "    Linked ~/.agents/.skill-lock.json"
+  fi
+
+  mkdir -p "$HOME/.claude/skills"
+  for skill in "$AGENTS_DIR/skills"/*/; do
+    [ -d "$skill" ] || continue
+    name=$(basename "$skill")
+    target="$HOME/.claude/skills/$name"
+
+    # Preserve Claude-only skills. Shared skill links are safe to refresh.
+    if [ -e "$target" ] && [ ! -L "$target" ]; then
+      continue
+    fi
+
+    ln -sfn "$HOME/.agents/skills/$name" "$target"
+  done
+  echo "    Linked shared skills into ~/.claude/skills"
+fi
+
 # Link safe Pi settings, extensions, and themes (never auth or sessions).
 PI_AGENT_DIR="$DOTFILES_DIR/pi/agent"
 if [ -d "$PI_AGENT_DIR" ]; then
