@@ -23,9 +23,9 @@ Commands:
   init [options]       Install packages and configuration
   stow [options]       Link the managed home tree with GNU Stow
   doctor               Check tools, packages, and managed links
-  update               Pull changes, update selected packages, and restow
-  packages install     Install base and selected profile packages
-  packages check       Check base and selected profile packages
+  update               Pull repo, update Homebrew packages, and restow
+  packages install     Install Homebrew packages for the selected profile
+  packages check       Check Homebrew packages for the selected profile
   profile show         Show the saved package profile
   profile set P        Save base, personal, or work as the profile
   macos                Apply macOS preferences

@@ -47,9 +47,9 @@ Edit tracked configuration under `home/`. GNU Stow creates the corresponding lin
 dot init [options]       Install packages and configuration
 dot stow [options]       Refresh managed links
 dot doctor               Check tools, packages, and links
-dot update               Pull, update selected packages, and restow
-dot packages install     Install base and selected profile packages
-dot packages check       Check base and selected profile packages
+dot update               Pull repo, update Homebrew packages, and restow
+dot packages install     Install Homebrew packages for the selected profile
+dot packages check       Check Homebrew packages for the selected profile
 dot profile show         Show the saved package profile
 dot profile set P        Select base, personal, or work packages
 dot macos                Apply macOS preferences
