@@ -254,6 +254,15 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-26T08:19:04.701Z",
       "updatedAt": "2026-08-26T08:19:04.701Z"
+    },
+    "unslop": {
+      "source": "backnotprop/pstack",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/pstack.git",
+      "skillPath": "skills/unslop/SKILL.md",
+      "skillFolderHash": "6161508c5c7959b156ff0e4e10b510863b51f9cc",
+      "installedAt": "2026-08-28T13:10:31.736Z",
+      "updatedAt": "2026-08-28T13:10:31.736Z"
     }
   },
   "dismissed": {
