@@ -20,8 +20,8 @@ print_help() {
 Usage: dot <command>
 
 Commands:
-  init [--profile P]   Install packages and configuration
-  stow                 Link the managed home tree with GNU Stow
+  init [options]       Install packages and configuration
+  stow [options]       Link the managed home tree with GNU Stow
   doctor               Check tools, packages, and managed links
   update               Pull changes, update selected packages, and restow
   packages install     Install base and selected profile packages
@@ -34,11 +34,15 @@ Commands:
   unlink               Remove the managed ~/.local/bin/dot link
   edit                 Open this repository in $EDITOR
   help                 Show this help
+
+Options for init and stow:
+  --archive-legacy-skills  Archive old Pi skill copies before linking
 HELP
 }
 
 cmd_init() {
   local requested_profile=""
+  local archive_legacy_skills=0
 
   while (( $# > 0 )); do
     case "$1" in
@@ -46,6 +50,10 @@ cmd_init() {
         [[ $# -ge 2 ]] || fail "--profile requires base, personal, or work"
         requested_profile="$2"
         shift 2
+        ;;
+      --archive-legacy-skills)
+        archive_legacy_skills=1
+        shift
         ;;
       *)
         fail "unknown init option: $1"
@@ -69,7 +77,7 @@ cmd_init() {
   fi
 
   bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
-  stow_home
+  stow_home "$archive_legacy_skills"
   link_dot_command
 
   if (( packages_failed > 0 )); then
@@ -78,6 +86,25 @@ cmd_init() {
   fi
 
   success "setup complete; restart the terminal, then run 'dot doctor'"
+}
+
+cmd_stow() {
+  local archive_legacy_skills=0
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --archive-legacy-skills)
+        archive_legacy_skills=1
+        shift
+        ;;
+      *)
+        fail "unknown stow option: $1"
+        return 1
+        ;;
+    esac
+  done
+
+  stow_home "$archive_legacy_skills"
 }
 
 cmd_update() {
@@ -165,7 +192,7 @@ main() {
 
   case "$command" in
     init) cmd_init "$@" ;;
-    stow) require_no_args stow "$@"; stow_home ;;
+    stow) cmd_stow "$@" ;;
     doctor) require_no_args doctor "$@"; run_doctor ;;
     update) cmd_update "$@" ;;
     packages) cmd_packages "$@" ;;

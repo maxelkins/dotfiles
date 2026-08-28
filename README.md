@@ -44,8 +44,8 @@ Edit tracked configuration under `home/`. GNU Stow creates the corresponding lin
 ## Commands
 
 ```text
-dot init [--profile P]   Install packages and configuration
-dot stow                 Refresh managed links
+dot init [options]       Install packages and configuration
+dot stow [options]       Refresh managed links
 dot doctor               Check tools, packages, and links
 dot update               Pull, update selected packages, and restow
 dot packages install     Install base and selected profile packages
@@ -84,6 +84,14 @@ Before Stow runs, `dot stow` checks every managed path. Conflicting files and li
 ```
 
 The backup keeps each path relative to `$HOME`. Stow then links individual files instead of folding whole directories, so application runtime state stays outside the repository.
+
+Pi loads skills from both `~/.pi/agent/skills` and `~/.agents/skills`. Setup automatically archives identical legacy copies from the Pi-specific directory. If a legacy copy differs from the repo version, setup preserves it and prints a warning. To archive all conflicting legacy copies and use a fresh repo-managed set, run:
+
+```sh
+dot stow --archive-legacy-skills
+```
+
+The same option works with `dot init`.
 
 ## Deliberate setup steps
 

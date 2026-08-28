@@ -65,6 +65,26 @@ prepare_managed_files() {
   done < <(find "$DOT_HOME_DIR" -type f | LC_ALL=C sort)
 }
 
+migrate_legacy_pi_skills() {
+  local archive_all="${1:-0}"
+  local source name legacy
+  local legacy_skills="${HOME}/.pi/agent/skills"
+
+  for source in "${DOT_HOME_DIR}/.agents/skills"/*/; do
+    [[ -d "$source" ]] || continue
+    name="$(basename "$source")"
+    legacy="${legacy_skills}/${name}"
+    [[ -e "$legacy" || -L "$legacy" ]] || continue
+
+    if [[ "$archive_all" == "1" ]] || { [[ -d "$legacy" ]] && diff -qr -- "$source" "$legacy" >/dev/null 2>&1; }; then
+      backup_target "$legacy"
+    else
+      warn "legacy Pi skill differs from shared skill; left untouched: ~/.pi/agent/skills/${name}"
+      warn "run 'dot stow --archive-legacy-skills' to archive it and use the repo copy"
+    fi
+  done
+}
+
 sync_claude_skills() {
   local source name target
   local claude_skills="${HOME}/.claude/skills"
@@ -85,11 +105,14 @@ sync_claude_skills() {
 }
 
 stow_home() {
+  local archive_legacy_skills="${1:-0}"
+
   command_exists stow || fail "GNU Stow is required; run './dot packages install'"
   [[ -d "$DOT_HOME_DIR" ]] || fail "managed home tree not found: $DOT_HOME_DIR"
 
   DOT_BACKUP_SESSION=""
   info "Checking managed paths"
+  migrate_legacy_pi_skills "$archive_legacy_skills"
   prepare_managed_directories
   prepare_managed_files
 

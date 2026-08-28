@@ -58,6 +58,9 @@ export PATH="${FAKE_BIN}:$PATH"
 : > "$FAKE_BREW_LOG"
 
 printf 'old zsh config\n' > "$HOME/.zshrc"
+mkdir -p "$HOME/.pi/agent/skills/unslop" "$HOME/.pi/agent/skills/caveman"
+cp "$ROOT/home/.agents/skills/unslop/SKILL.md" "$HOME/.pi/agent/skills/unslop/SKILL.md"
+printf 'different local skill\n' > "$HOME/.pi/agent/skills/caveman/SKILL.md"
 
 "$ROOT/dot" help >/dev/null
 if "$ROOT/dot" unknown >/dev/null 2>&1; then
@@ -71,10 +74,29 @@ fi
 backup_zshrc="$(find "$BACKUPS" -path '*/home/.zshrc' -type f -print -quit)"
 [[ -n "$backup_zshrc" ]]
 grep -Fqx 'old zsh config' "$backup_zshrc"
+if [[ -e "$HOME/.pi/agent/skills/unslop" ]]; then
+  printf 'identical legacy Pi skill was not migrated\n' >&2
+  exit 1
+fi
+backup_unslop="$(find "$BACKUPS" -path '*/home/.pi/agent/skills/unslop/SKILL.md' -type f -print -quit)"
+if [[ -z "$backup_unslop" ]]; then
+  printf 'identical legacy Pi skill was not backed up\n' >&2
+  exit 1
+fi
+grep -Fqx 'different local skill' "$HOME/.pi/agent/skills/caveman/SKILL.md"
 [[ -L "$HOME/.claude/skills/diagnose" ]]
 [[ "$HOME/.claude/skills/diagnose" -ef "$HOME/.agents/skills/diagnose" ]]
 
-"$ROOT/dot" stow >/dev/null
+"$ROOT/dot" stow --archive-legacy-skills >/dev/null
+if [[ -e "$HOME/.pi/agent/skills/caveman" ]]; then
+  printf 'legacy Pi skill was not archived on request\n' >&2
+  exit 1
+fi
+backup_caveman="$(find "$BACKUPS" -path '*/home/.pi/agent/skills/caveman/SKILL.md' -type f -print -quit)"
+if [[ -z "$backup_caveman" ]]; then
+  printf 'legacy Pi skill archive was not preserved\n' >&2
+  exit 1
+fi
 
 [[ "$("$ROOT/dot" profile show)" == "base" ]]
 "$ROOT/dot" profile set work >/dev/null
