@@ -18,7 +18,7 @@ This repository manages a macOS home directory with GNU Stow.
 After shell or layout changes, run:
 
 ```sh
-bash -n dot setup.sh scripts/*.sh scripts/lib/*.sh tests/*.sh
+bash -n dot scripts/*.sh scripts/lib/*.sh tests/*.sh
 bash tests/smoke.sh
 ```
 

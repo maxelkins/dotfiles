@@ -18,8 +18,6 @@ Restart the terminal, then verify the installation:
 dot doctor
 ```
 
-The old `setup.sh` entry point remains as a compatibility wrapper around `dot init`.
-
 ## Layout
 
 ```text
@@ -80,5 +78,5 @@ bash tests/smoke.sh
 Run syntax checks separately when changing shell scripts:
 
 ```sh
-bash -n dot setup.sh scripts/*.sh scripts/lib/*.sh tests/*.sh
+bash -n dot scripts/*.sh scripts/lib/*.sh tests/*.sh
 ```
