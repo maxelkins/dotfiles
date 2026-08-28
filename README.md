@@ -1,11 +1,11 @@
-# Mac setup
+# Dotfiles
 
-Personal macOS configuration managed with Homebrew, GNU Stow, and the `dot` command.
+macOS development configuration managed with Homebrew, GNU Stow, and the `dot` command.
 
 ## Install
 
 ```sh
-git clone https://github.com/maxelkins/mac-setup.git ~/.dotfiles
+git clone https://github.com/maxelkins/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ./dot init
 ```
