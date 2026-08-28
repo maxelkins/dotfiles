@@ -61,10 +61,22 @@ cmd_init() {
 
   info "Installing mac-setup"
   install_homebrew
-  install_packages
+
+  local packages_failed=0
+  if ! install_packages; then
+    packages_failed=1
+    warn "package installation was incomplete; configuration will still be applied"
+  fi
+
   bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
   stow_home
   link_dot_command
+
+  if (( packages_failed > 0 )); then
+    fail "setup completed with package failures; run 'dot packages install' to retry"
+    return 1
+  fi
+
   success "setup complete; restart the terminal, then run 'dot doctor'"
 }
 
@@ -78,8 +90,20 @@ cmd_update() {
 
   info "Pulling repository changes"
   git -C "$DOT_ROOT" pull --ff-only
-  update_packages
+
+  local packages_failed=0
+  if ! update_packages; then
+    packages_failed=1
+    warn "package update was incomplete; configuration will still be applied"
+  fi
+
   stow_home
+
+  if (( packages_failed > 0 )); then
+    fail "update completed with package failures"
+    return 1
+  fi
+
   success "update complete"
 }
 

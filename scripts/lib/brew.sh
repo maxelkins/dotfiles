@@ -65,16 +65,6 @@ choose_initial_profile() {
   printf '%s\n' "$choice"
 }
 
-profile_bundles() {
-  local profile="$1"
-  validate_profile "$profile"
-  printf '%s\n' "${DOT_ROOT}/packages/bundle"
-
-  if [[ "$profile" != "base" ]]; then
-    printf '%s\n' "${DOT_ROOT}/packages/bundle.${profile}"
-  fi
-}
-
 load_brew_environment() {
   if command_exists brew; then
     return 0
@@ -102,33 +92,60 @@ install_homebrew() {
   command_exists brew || fail "Homebrew installed but is unavailable in PATH"
 }
 
+trust_declared_formulae() {
+  local trust_file="${DOT_ROOT}/packages/trusted-formulae"
+  local formula
+
+  [[ -f "$trust_file" ]] || return 0
+
+  while IFS= read -r formula; do
+    [[ -n "$formula" && "$formula" != \#* ]] || continue
+    info "Trusting formula $formula"
+    brew trust --formula "$formula"
+  done < "$trust_file"
+}
+
 install_packages() {
-  local profile bundle
+  local profile bundle failed=0
   profile="$(current_profile)"
+  local bundles=("${DOT_ROOT}/packages/bundle")
+  if [[ "$profile" != "base" ]]; then
+    bundles+=("${DOT_ROOT}/packages/bundle.${profile}")
+  fi
 
   command_exists brew || fail "Homebrew is required"
+  trust_declared_formulae
   info "Installing $profile package profile"
 
-  while IFS= read -r bundle; do
+  for bundle in "${bundles[@]}"; do
     [[ -f "$bundle" ]] || fail "package bundle not found: $bundle"
     info "Installing $(basename "$bundle")"
-    brew bundle --file="$bundle"
-  done < <(profile_bundles "$profile")
+    if ! brew bundle --file="$bundle"; then
+      warn "$(basename "$bundle") had package failures"
+      failed=1
+    fi
+  done
+
+  return "$failed"
 }
 
 check_packages() {
   local profile bundle failed=0
   profile="$(current_profile)"
+  local bundles=("${DOT_ROOT}/packages/bundle")
+  if [[ "$profile" != "base" ]]; then
+    bundles+=("${DOT_ROOT}/packages/bundle.${profile}")
+  fi
 
   command_exists brew || fail "Homebrew is required"
 
-  while IFS= read -r bundle; do
+  for bundle in "${bundles[@]}"; do
     [[ -f "$bundle" ]] || fail "package bundle not found: $bundle"
     info "Checking $(basename "$bundle")"
     if ! brew bundle check --no-upgrade --file="$bundle"; then
       failed=1
     fi
-  done < <(profile_bundles "$profile")
+  done
 
   return "$failed"
 }

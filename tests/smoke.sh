@@ -15,7 +15,11 @@ cat > "${FAKE_BIN}/brew" <<'FAKE_BREW'
 set -euo pipefail
 printf '%s\n' "$*" >> "$FAKE_BREW_LOG"
 case "${1:-}" in
-  bundle) exit 0 ;;
+  bundle)
+    # Homebrew may read stdin, so package iteration must not use stdin as its list.
+    cat >/dev/null
+    [[ "${FAKE_BREW_FAIL_BUNDLE:-0}" != "1" ]]
+    ;;
   update) exit 0 ;;
   *) exit 0 ;;
 esac
@@ -93,5 +97,26 @@ fi
 [[ -L "$HOME/.local/bin/dot" ]]
 "$ROOT/dot" unlink >/dev/null
 [[ ! -e "$HOME/.local/bin/dot" && ! -L "$HOME/.local/bin/dot" ]]
+
+# Package failures must not prevent configuration and command links from being applied.
+rm "$HOME/.zshrc"
+export FAKE_BREW_FAIL_BUNDLE=1
+init_output="${TEST_ROOT}/init-output.log"
+if "$ROOT/dot" init --profile work >"$init_output" 2>&1; then
+  printf 'init unexpectedly succeeded after a package failure\n' >&2
+  exit 1
+fi
+unset FAKE_BREW_FAIL_BUNDLE
+grep -Fq "setup completed with package failures" "$init_output"
+grep -Fqx 'trust --formula grega/tap/hdi' "$FAKE_BREW_LOG"
+[[ -L "$HOME/.zshrc" ]]
+[[ "$HOME/.zshrc" -ef "$ROOT/home/.zshrc" ]]
+[[ -L "$HOME/.local/bin/dot" ]]
+
+grep -Fq 'cask "github"' "$ROOT/packages/bundle.personal"
+if grep -Eq 'cask "(font-jetbrains-mono-nerd-font|github|obsidian)"' "$ROOT/packages/bundle"; then
+  printf 'externally managed work app found in base bundle\n' >&2
+  exit 1
+fi
 
 printf 'smoke test passed\n'

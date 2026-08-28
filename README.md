@@ -31,7 +31,8 @@ dot doctor
 ├── packages/
 │   ├── bundle          # Packages shared by every machine
 │   ├── bundle.personal # Personal applications
-│   └── bundle.work     # Work applications
+│   ├── bundle.work     # Work applications
+│   └── trusted-formulae # Narrow trust for third-party formulae
 ├── scripts/lib/        # CLI implementation
 ├── scripts/macos.sh    # macOS preferences
 ├── scripts/dock.sh     # Dock contents
@@ -69,6 +70,10 @@ On the first `dot init`, choose `base`, `personal`, or `work` at the prompt. For
 ```
 
 The selection is stored outside the repository at `~/.config/mac-setup/profile`. Change it with `dot profile set personal`. Package installation, checks, updates, and `dot doctor` reuse the saved selection.
+
+The work profile treats JetBrains Mono Nerd Font, GitHub Desktop, and Obsidian as externally managed. Their Homebrew casks remain in the personal profile. Formulae listed in `packages/trusted-formulae` receive narrow, formula-level Homebrew trust before installation.
+
+A failed package does not prevent shell configuration and Stow links from being applied. `dot init` finishes those steps, reports the incomplete package installation, and exits nonzero so the failure remains visible.
 
 ## Existing files and backups
 
