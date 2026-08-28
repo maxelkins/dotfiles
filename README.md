@@ -28,7 +28,10 @@ dot doctor
 │   ├── .config/        # Application configuration
 │   ├── .pi/            # Safe Pi configuration
 │   └── Library/        # macOS application support files
-├── packages/bundle     # Homebrew formulae and casks
+├── packages/
+│   ├── bundle          # Packages shared by every machine
+│   ├── bundle.personal # Personal applications
+│   └── bundle.work     # Work applications
 ├── scripts/lib/        # CLI implementation
 ├── scripts/macos.sh    # macOS preferences
 ├── scripts/dock.sh     # Dock contents
@@ -40,18 +43,32 @@ Edit tracked configuration under `home/`. GNU Stow creates the corresponding lin
 ## Commands
 
 ```text
-dot init                 Install packages and configuration
+dot init [--profile P]   Install packages and configuration
 dot stow                 Refresh managed links
 dot doctor               Check tools, packages, and links
-dot update               Pull, update packages, and restow
-dot packages install     Install the Homebrew bundle
-dot packages check       Check the Homebrew bundle
+dot update               Pull, update selected packages, and restow
+dot packages install     Install base and selected profile packages
+dot packages check       Check base and selected profile packages
+dot profile show         Show the saved package profile
+dot profile set P        Select base, personal, or work packages
 dot macos                Apply macOS preferences
 dot dock                 Configure Dock applications
 dot edit                 Open the repository in $EDITOR
 ```
 
 Run `dot help` for the current command list.
+
+## Package profiles
+
+Every machine installs `packages/bundle`. One saved profile adds either `packages/bundle.personal` or `packages/bundle.work`; choose `base` to install neither optional bundle.
+
+On the first `dot init`, choose `base`, `personal`, or `work` at the prompt. For unattended setup, pass the choice explicitly:
+
+```sh
+./dot init --profile work
+```
+
+The selection is stored outside the repository at `~/.config/mac-setup/profile`. Change it with `dot profile set personal`. Package installation, checks, updates, and `dot doctor` reuse the saved selection.
 
 ## Existing files and backups
 

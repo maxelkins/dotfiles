@@ -41,7 +41,7 @@ run_doctor() {
   fi
 
   if command_exists brew; then
-    info "Checking package bundle"
+    info "Checking $(current_profile) package profile"
     if check_packages >/dev/null 2>&1; then
       success "declared packages are installed"
     else

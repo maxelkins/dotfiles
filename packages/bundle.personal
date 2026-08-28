@@ -1,0 +1,6 @@
+# Personal applications
+cask "bitwarden"
+cask "cyberduck"
+cask "discord"
+cask "signal"
+cask "vlc"

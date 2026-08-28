@@ -13,6 +13,7 @@ mkdir -p "$TEST_HOME/.oh-my-zsh" "$FAKE_BIN"
 cat > "${FAKE_BIN}/brew" <<'FAKE_BREW'
 #!/usr/bin/env bash
 set -euo pipefail
+printf '%s\n' "$*" >> "$FAKE_BREW_LOG"
 case "${1:-}" in
   bundle) exit 0 ;;
   update) exit 0 ;;
@@ -48,7 +49,9 @@ chmod +x "${FAKE_BIN}/brew" "${FAKE_BIN}/stow"
 
 export HOME="$TEST_HOME"
 export DOT_BACKUP_ROOT="$BACKUPS"
+export FAKE_BREW_LOG="${TEST_ROOT}/brew.log"
 export PATH="${FAKE_BIN}:$PATH"
+: > "$FAKE_BREW_LOG"
 
 printf 'old zsh config\n' > "$HOME/.zshrc"
 
@@ -68,6 +71,23 @@ grep -Fqx 'old zsh config' "$backup_zshrc"
 [[ "$HOME/.claude/skills/diagnose" -ef "$HOME/.agents/skills/diagnose" ]]
 
 "$ROOT/dot" stow >/dev/null
+
+[[ "$("$ROOT/dot" profile show)" == "base" ]]
+"$ROOT/dot" profile set work >/dev/null
+[[ "$("$ROOT/dot" profile show)" == "work" ]]
+: > "$FAKE_BREW_LOG"
+"$ROOT/dot" packages check >/dev/null
+grep -Fq -- "--file=${ROOT}/packages/bundle" "$FAKE_BREW_LOG"
+grep -Fq -- "--file=${ROOT}/packages/bundle.work" "$FAKE_BREW_LOG"
+if grep -Fq 'bundle.personal' "$FAKE_BREW_LOG"; then
+  printf 'work profile unexpectedly checked personal bundle\n' >&2
+  exit 1
+fi
+if "$ROOT/dot" profile set invalid >/dev/null 2>&1; then
+  printf 'invalid profile unexpectedly succeeded\n' >&2
+  exit 1
+fi
+
 "$ROOT/dot" doctor >/dev/null
 "$ROOT/dot" link >/dev/null
 [[ -L "$HOME/.local/bin/dot" ]]
