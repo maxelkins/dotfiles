@@ -28,6 +28,7 @@ export HOMEBREW_NO_ENV_HINTS=1
 
 alias gl='git log --graph --oneline'
 alias ga='git add .'
+alias gmain='git checkout main && git pull'
 alias ll='ls -l'
 alias dev='npm run dev'
 alias ydev='yarn dev'
@@ -36,6 +37,9 @@ alias dcdown='docker compose down'
 alias dup="colima start --cpu 4 --memory 8"
 alias ddown="colima stop"
 alias opr='op run --'
+alias h='herdr'
+alias hr='herdr server stop && herdr'
+
 
 # ccusage AI usage
 ai-today() { npx ccusage daily --compact -s "$(date +%Y-%m-%d)" -u "$(date +%Y-%m-%d)" }
