@@ -1,0 +1,24 @@
+# Repository instructions
+
+This repository manages a macOS home directory with GNU Stow.
+
+## Working rules
+
+- Treat `home/` as a mirror of `$HOME`. For example, edit `home/.config/starship.toml` for `~/.config/starship.toml`.
+- Keep machine state, credentials, sessions, caches, and generated files outside `home/`. Add a narrow `.gitignore` rule when a managed tool writes runtime files beside tracked configuration.
+- Preserve user changes in `home/.agents/.skill-lock.json`. Skill installers may update it outside an agent task.
+- Put Homebrew declarations in `packages/bundle`.
+- Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
+- Use `dot stow` for managed links. Its preflight backs up conflicts before GNU Stow runs.
+- Keep `dot macos` and `dot dock` opt-in. They change host state.
+
+## Verification
+
+After shell or layout changes, run:
+
+```sh
+bash -n dot setup.sh scripts/*.sh scripts/lib/*.sh tests/*.sh
+bash tests/smoke.sh
+```
+
+The smoke test must use a temporary `HOME`. Repository tests must not alter the developer's live home directory.

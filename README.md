@@ -1,57 +1,84 @@
-# Mac Setup
+# Mac setup
 
-Automate macOS development environment setup, dotfiles, and app and system preferences.
+Personal macOS configuration managed with Homebrew, GNU Stow, and the `dot` command.
 
-## Usage
+## Install
 
 ```sh
-bash setup.sh
+git clone https://github.com/maxelkins/mac-setup.git ~/.dotfiles
+cd ~/.dotfiles
+./dot init
 ```
 
-This will:
+`dot init` installs Homebrew packages and Oh My Zsh, links the files under `home/` into your home directory, exposes shared agent skills to Claude Code, and links `dot` through `~/.local/bin`.
 
-- Install Homebrew and all packages/casks from `Brewfile`
-- Install Oh My Zsh
-- Symlink top-level dotfiles and standalone `~/.config` files (e.g. `.zshrc`, `.gitconfig`, `starship.toml`)
-- Symlink Herdr's `config.toml` while leaving logs, plugins, sessions, and runtime state local
-- Symlink the tracked agent skills to `~/.agents/skills` and expose them to Claude Code while preserving Claude-only skills
-- Symlink safe Pi settings, extensions, the Cobalt2 theme, and Zentui configuration while leaving auth and sessions private
-- Copy app config directories for Karabiner, Ghostty, etc.
-- Apply macOS system preferences
+Restart the terminal, then verify the installation:
 
-**Restart your terminal** for all changes to take effect.
+```sh
+dot doctor
+```
 
-## Customizing
+The old `setup.sh` entry point remains as a compatibility wrapper around `dot init`.
 
-- Edit files in `dotfiles/` to change your shell, git, or app config.
-- Edit `scripts/macos.sh` to tweak macOS settings.
-- Add/remove Homebrew packages in `Brewfile`.
+## Layout
 
-## Agent skills
+```text
+.
+├── dot                 # Setup and maintenance CLI
+├── home/               # Mirrors paths under $HOME
+│   ├── .agents/        # Shared agent skills
+│   ├── .config/        # Application configuration
+│   ├── .pi/            # Safe Pi configuration
+│   └── Library/        # macOS application support files
+├── packages/bundle     # Homebrew formulae and casks
+├── scripts/lib/        # CLI implementation
+├── scripts/macos.sh    # macOS preferences
+├── scripts/dock.sh     # Dock contents
+└── tests/              # Tests that use a temporary HOME
+```
 
-Shared skills live under `dotfiles/agents/skills/`. Setup links that directory to
-`~/.agents/skills`, links the Skills CLI lock file, and adds per-skill links under
-`~/.claude/skills`. Claude-only skills already present in that directory are left
-untouched. Pi and other Agent Skills-compatible tools read `~/.agents/skills`
-directly.
+Edit tracked configuration under `home/`. GNU Stow creates the corresponding links under `$HOME`.
 
-## Pi appearance
+## Commands
 
-Pi uses the native `cobalt2` theme from `dotfiles/pi/agent/themes/`, a compact
-welcome card from `dotfiles/pi/agent/extensions/`, and the `pi-zentui` package
-for a responsive Starship-style footer and Opencode editor metadata showing
-model, provider, and thinking effort. Safe Pi settings and global agent
-instructions are tracked under `dotfiles/pi/agent/`; authentication and session
-data are not.
+```text
+dot init                 Install packages and configuration
+dot stow                 Refresh managed links
+dot doctor               Check tools, packages, and links
+dot update               Pull, update packages, and restow
+dot packages install     Install the Homebrew bundle
+dot packages check       Check the Homebrew bundle
+dot macos                Apply macOS preferences
+dot dock                 Configure Dock applications
+dot edit                 Open the repository in $EDITOR
+```
 
-## Nerd Font fallback
+Run `dot help` for the current command list.
 
-Starship uses Nerd Font icons. Ghostty keeps Monaco as its primary font and uses
-JetBrains Mono Nerd Font Mono for missing glyphs. In iTerm2, enable **Use a
-different font for non-ASCII text** under **Profiles → Text** and select
-**JetBrainsMonoNL Nerd Font Mono**.
+## Existing files and backups
 
-## Notes
+Before Stow runs, `dot stow` checks every managed path. Conflicting files and links move to:
 
-- Existing dotfiles are backed up as `*.bak` before being replaced.
-- App config directories are copied, not symlinked, for compatibility.
+```text
+~/.local/state/mac-setup/backups/<timestamp>/home/
+```
+
+The backup keeps each path relative to `$HOME`. Stow then links individual files instead of folding whole directories, so application runtime state stays outside the repository.
+
+## Deliberate setup steps
+
+`dot init` does not change macOS preferences or Dock contents. Run `dot macos` and `dot dock` explicitly because both commands change visible system state. `dot macos` also prompts for the computer name.
+
+## Development
+
+Run the smoke test without touching your real home directory:
+
+```sh
+bash tests/smoke.sh
+```
+
+Run syntax checks separately when changing shell scripts:
+
+```sh
+bash -n dot setup.sh scripts/*.sh scripts/lib/*.sh tests/*.sh
+```

@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DOT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOT_HOME_DIR="${DOT_ROOT}/home"
+readonly DOT_ROOT DOT_HOME_DIR
+export DOT_ROOT DOT_HOME_DIR
+
+# shellcheck source=scripts/lib/common.sh
+source "${DOT_ROOT}/scripts/lib/common.sh"
+# shellcheck source=scripts/lib/brew.sh
+source "${DOT_ROOT}/scripts/lib/brew.sh"
+# shellcheck source=scripts/lib/stow.sh
+source "${DOT_ROOT}/scripts/lib/stow.sh"
+# shellcheck source=scripts/lib/doctor.sh
+source "${DOT_ROOT}/scripts/lib/doctor.sh"
+
+print_help() {
+  cat <<'HELP'
+Usage: dot <command>
+
+Commands:
+  init                 Install packages and configuration
+  stow                 Link the managed home tree with GNU Stow
+  doctor               Check tools, packages, and managed links
+  update               Pull changes, update packages, and restow
+  packages install     Install packages from packages/bundle
+  packages check       Check packages from packages/bundle
+  macos                Apply macOS preferences
+  dock                 Configure Dock applications
+  link                 Link dot into ~/.local/bin
+  unlink               Remove the managed ~/.local/bin/dot link
+  edit                 Open this repository in $EDITOR
+  help                 Show this help
+HELP
+}
+
+cmd_init() {
+  require_no_args init "$@"
+  require_macos
+  info "Installing mac-setup"
+  install_homebrew
+  install_packages
+  bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
+  stow_home
+  link_dot_command
+  success "setup complete; restart the terminal, then run 'dot doctor'"
+}
+
+cmd_update() {
+  require_no_args update "$@"
+
+  if [[ -n "$(git -C "$DOT_ROOT" status --porcelain)" ]]; then
+    fail "repository has uncommitted changes; commit or stash them before updating"
+    return 1
+  fi
+
+  info "Pulling repository changes"
+  git -C "$DOT_ROOT" pull --ff-only
+  update_packages
+  stow_home
+  success "update complete"
+}
+
+cmd_packages() {
+  local subcommand="${1:-help}"
+  shift || true
+
+  case "$subcommand" in
+    install)
+      require_no_args "packages install" "$@"
+      install_homebrew
+      install_packages
+      ;;
+    check)
+      require_no_args "packages check" "$@"
+      check_packages
+      ;;
+    help|-h|--help)
+      printf 'Usage: dot packages <install|check>\n'
+      ;;
+    *)
+      fail "unknown packages command: $subcommand"
+      ;;
+  esac
+}
+
+cmd_edit() {
+  require_no_args edit "$@"
+  local editor="${EDITOR:-}"
+  [[ -n "$editor" ]] || fail "EDITOR is not set"
+  "$editor" "$DOT_ROOT"
+}
+
+main() {
+  local command="${1:-help}"
+  shift || true
+
+  case "$command" in
+    init) cmd_init "$@" ;;
+    stow) require_no_args stow "$@"; stow_home ;;
+    doctor) require_no_args doctor "$@"; run_doctor ;;
+    update) cmd_update "$@" ;;
+    packages) cmd_packages "$@" ;;
+    macos) require_no_args macos "$@"; require_macos; bash "${DOT_ROOT}/scripts/macos.sh" ;;
+    dock) require_no_args dock "$@"; require_macos; bash "${DOT_ROOT}/scripts/dock.sh" ;;
+    link) require_no_args link "$@"; link_dot_command ;;
+    unlink) require_no_args unlink "$@"; unlink_dot_command ;;
+    edit) cmd_edit "$@" ;;
+    help|-h|--help) print_help ;;
+    *) fail "unknown command: $command"; printf "Run 'dot help' for usage.\n" >&2 ;;
+  esac
+}
+
+main "$@"
