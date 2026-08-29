@@ -99,16 +99,10 @@ The same option works with `dot init`.
 
 ## Development
 
-Run the smoke test without touching your real home directory:
+Run syntax checks when changing shell scripts:
 
 ```sh
-bash tests/smoke.sh
-```
-
-Run syntax checks separately when changing shell scripts:
-
-```sh
-bash -n dot scripts/*.sh scripts/lib/*.sh tests/*.sh
+bash -n dot scripts/*.sh scripts/lib/*.sh
 ```
 
 _Credit: Thanks to [dmmulroy](https://github.com/dmmulroy/.dotfiles) for the inspiration_

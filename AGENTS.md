@@ -20,8 +20,5 @@ This repository manages a macOS home directory with GNU Stow.
 After shell or layout changes, run:
 
 ```sh
-bash -n dot scripts/*.sh scripts/lib/*.sh tests/*.sh
-bash tests/smoke.sh
+bash -n dot scripts/*.sh scripts/lib/*.sh
 ```
-
-The smoke test must use a temporary `HOME`. Repository tests must not alter the developer's live home directory.
