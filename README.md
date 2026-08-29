@@ -1,6 +1,6 @@
 # Dotfiles
 
-macOS development configuration managed with Homebrew, GNU Stow, and the `dot` command.
+My macOS setup, managed with Homebrew, GNU Stow, and a small `dot` command.
 
 ## Install
 
@@ -10,36 +10,35 @@ cd ~/.dotfiles
 ./dot init
 ```
 
-`dot init` installs Homebrew packages and Oh My Zsh, links the files under `home/` into your home directory, exposes shared agent skills to Claude Code, and links `dot` through `~/.local/bin`.
+`dot init` installs Homebrew packages and Oh My Zsh, links the files in `home/` into `$HOME`, shares agent skills with Claude Code, and adds `dot` to `~/.local/bin`.
 
-Restart the terminal, then verify the installation:
+Restart the terminal and check the setup:
 
 ```sh
 dot doctor
 ```
 
-## Layout
+## Repository layout
 
 ```text
 .
-├── dot                 # Setup and maintenance CLI
-├── home/               # Mirrors paths under $HOME
-│   ├── .agents/        # Shared agent skills
-│   ├── .config/        # Application configuration
-│   ├── .pi/            # Safe Pi configuration
-│   └── Library/        # macOS application support files
+├── dot                  # Setup and maintenance command
+├── home/                # Files linked into $HOME
+│   ├── .agents/         # Shared agent skills
+│   ├── .config/         # Application configuration
+│   ├── .pi/             # Pi configuration
+│   └── Library/         # macOS application support files
 ├── packages/
-│   ├── bundle          # Packages shared by every machine
-│   ├── bundle.personal # Personal applications
-│   ├── bundle.work     # Work applications
-│   └── trusted-formulae # Narrow trust for third-party formulae
-├── scripts/lib/        # CLI implementation
-├── scripts/macos.sh    # macOS preferences
-├── scripts/dock.sh     # Dock contents
-└── tests/              # Tests that use a temporary HOME
+│   ├── bundle           # Packages for every machine
+│   ├── bundle.personal  # Personal applications
+│   ├── bundle.work      # Work applications
+│   └── trusted-formulae # Approved third-party formulae
+├── scripts/lib/         # dot implementation
+├── scripts/macos.sh     # macOS preferences
+└── scripts/dock.sh      # Dock contents
 ```
 
-Edit tracked configuration under `home/`. GNU Stow creates the corresponding links under `$HOME`.
+Edit files under `home/`, not the linked copies in `$HOME`.
 
 ## Commands
 
@@ -47,62 +46,54 @@ Edit tracked configuration under `home/`. GNU Stow creates the corresponding lin
 dot init [options]       Install packages and configuration
 dot stow [options]       Refresh managed links
 dot doctor               Check tools, packages, and links
-dot update               Pull repo, update Homebrew packages, and restow
-dot packages install     Install Homebrew packages for the selected profile
-dot packages check       Check Homebrew packages for the selected profile
-dot profile show         Show the saved package profile
+dot update               Pull changes, update packages, and restow
+dot packages install     Install packages for the selected profile
+dot packages check       Check packages for the selected profile
+dot profile show         Show the selected profile
 dot profile set P        Select base, personal, or work packages
 dot macos                Apply macOS preferences
-dot dock                 Configure Dock applications
-dot edit                 Open the repository in $EDITOR
+dot dock                 Set Dock applications
+dot link                 Add dot to ~/.local/bin
+dot unlink               Remove dot from ~/.local/bin
+dot edit                 Open this repository in $EDITOR
 ```
 
-Run `dot help` for the current command list.
+Run `dot help` for the full command list.
 
 ## Package profiles
 
-Every machine installs `packages/bundle`. One saved profile adds either `packages/bundle.personal` or `packages/bundle.work`; choose `base` to install neither optional bundle.
+Every machine installs `packages/bundle`. A saved profile can add `packages/bundle.personal` or `packages/bundle.work`. The `base` profile adds neither.
 
-Every interactive `dot init` asks for `base`, `personal`, or `work`, using the saved profile as its default. Press Enter to keep the current selection. For unattended setup, pass the choice explicitly:
+Interactive setup asks which profile to use. Press Enter to keep the current choice, or pass one directly:
 
 ```sh
 ./dot init --profile work
 ```
 
-The selection is stored outside the repository at `~/.config/mac-setup/profile`. Change it with `dot profile set personal`. Package installation, checks, updates, and `dot doctor` reuse the saved selection.
-
-The work profile treats JetBrains Mono Nerd Font, GitHub Desktop, and Obsidian as externally managed. Their Homebrew casks remain in the personal profile. Formulae listed in `packages/trusted-formulae` receive narrow, formula-level Homebrew trust before installation.
-
-A failed package does not prevent shell configuration and Stow links from being applied. `dot init` finishes those steps, reports the incomplete package installation, and exits nonzero so the failure remains visible.
+The work profile leaves JetBrains Mono Nerd Font, GitHub Desktop, and Obsidian to external management. Their Homebrew casks stay in the personal profile. `packages/trusted-formulae` lists third-party formulae that Homebrew may trust during installation.
 
 ## Existing files and backups
 
-Before Stow runs, `dot stow` checks every managed path. Conflicting files and links move to:
+Before Stow runs, `dot stow` checks each managed path. It moves conflicts to:
 
 ```text
 ~/.local/state/mac-setup/backups/<timestamp>/home/
 ```
 
-The backup keeps each path relative to `$HOME`. Stow then links individual files instead of folding whole directories, so application runtime state stays outside the repository.
+The backup keeps paths relative to `$HOME`. Stow links files one by one so application caches and other runtime files do not end up in the repository.
 
-Pi loads skills from both `~/.pi/agent/skills` and `~/.agents/skills`. Setup automatically archives identical legacy copies from the Pi-specific directory. If a legacy copy differs from the repo version, setup preserves it and prints a warning. To archive all conflicting legacy copies and use a fresh repo-managed set, run:
+Pi reads skills from `~/.pi/agent/skills` and `~/.agents/skills`. Setup archives identical copies from the old Pi-specific directory. It leaves differing copies alone and prints a warning.
+
+To archive those differing copies too, run:
 
 ```sh
 dot stow --archive-legacy-skills
 ```
 
-The same option works with `dot init`.
+The option also works with `dot init`.
 
-## Deliberate setup steps
+## Manual macOS changes
 
-`dot init` does not change macOS preferences or Dock contents. Run `dot macos` and `dot dock` explicitly because both commands change visible system state. `dot macos` also prompts for the computer name.
+`dot init` does not change macOS preferences or the Dock. Run `dot macos` and `dot dock` yourself when you want those changes. `dot macos` also asks for the computer name.
 
-## Development
-
-Run syntax checks when changing shell scripts:
-
-```sh
-bash -n dot scripts/*.sh scripts/lib/*.sh
-```
-
-_Credit: Thanks to [dmmulroy](https://github.com/dmmulroy/.dotfiles) for the inspiration_
+Thanks to [dmmulroy](https://github.com/dmmulroy/.dotfiles) for the original inspiration.
