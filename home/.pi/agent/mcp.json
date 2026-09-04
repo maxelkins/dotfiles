@@ -1,0 +1,21 @@
+{
+  "settings": {
+    "hostConfigDiscovery": "off"
+  },
+  "mcpServers": {
+    "Figma Desktop": {
+      "url": "http://127.0.0.1:3845/mcp"
+    },
+    "Figma Private": {
+      "command": "node",
+      "args": [
+        "/Users/max.elkins/dev/pi-figma-bridge/dist/server/index.js"
+      ],
+      "lifecycle": "lazy-keep-alive",
+      "directTools": true,
+      "approveTools": [
+        "figma_execute"
+      ]
+    }
+  }
+}
