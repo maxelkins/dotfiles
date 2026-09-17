@@ -10,7 +10,7 @@ cd ~/.dotfiles
 ./dot init
 ```
 
-`dot init` installs Homebrew packages and Oh My Zsh, links the files in `home/` into `$HOME`, shares agent skills with Claude Code, and adds `dot` to `~/.local/bin`.
+`dot init` installs Homebrew packages, Pi, and Oh My Zsh, links the files in `home/` into `$HOME`, shares agent skills with Claude Code, and adds `dot` to `~/.local/bin`.
 
 Restart the terminal and check the setup:
 
@@ -49,6 +49,8 @@ dot doctor               Check tools, packages, and links
 dot update               Pull changes, update packages, and restow
 dot packages install     Install packages for the selected profile
 dot packages check       Check packages for the selected profile
+dot pi install           Install or update Pi using its asdf runtime
+dot pi check             Check the Pi runtime and installation
 dot profile show         Show the selected profile
 dot profile set P        Select base, personal, or work packages
 dot macos                Apply macOS preferences
@@ -71,6 +73,18 @@ Interactive setup asks which profile to use. Press Enter to keep the current cho
 ```
 
 The work profile leaves JetBrains Mono Nerd Font, GitHub Desktop, and Obsidian to external management. Their Homebrew casks stay in the personal profile. `packages/trusted-formulae` lists third-party formulae that Homebrew may trust during installation.
+
+## Pi runtime
+
+Pi has its own asdf runtime under `~/.config/pi-runtime`. Its tracked `.tool-versions` selects Node independently of the current project, and the tracked `~/.local/bin/pi` launcher asks asdf for that runtime before invoking Pi. No asdf installation path is hard-coded.
+
+Install or update Pi after changing its Node version:
+
+```sh
+dot pi install
+```
+
+`dot init` installs Pi on a new machine, `dot update` updates it, and `dot doctor` checks it. Pi's `/update` command also checks for a newer Node release in the configured major version. It asks before updating the tracked `.tool-versions` file and requires a Pi restart when the runtime changes.
 
 ## Existing files and backups
 

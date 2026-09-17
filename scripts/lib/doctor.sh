@@ -50,6 +50,14 @@ run_doctor() {
     fi
   fi
 
+  info "Checking Pi runtime"
+  if check_pi_install; then
+    success "Pi $(pi_version) uses Node $(pi_node_version)"
+  else
+    warn "Pi installation is missing or broken; run 'dot pi install'"
+    ((failures += 1))
+  fi
+
   if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
     warn "Oh My Zsh is missing"
     ((failures += 1))

@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+runtime_dir="$HOME/.config/pi-runtime"
+
+if ! command -v asdf >/dev/null 2>&1; then
+  printf "asdf is required to run Pi. Run 'dot packages install'.\n" >&2
+  exit 1
+fi
+
+if [ ! -f "$runtime_dir/.tool-versions" ]; then
+  printf "Pi runtime configuration is missing. Run 'dot stow'.\n" >&2
+  exit 1
+fi
+
+if ! node_dir=$(cd "$runtime_dir" && asdf where nodejs 2>/dev/null); then
+  printf "Pi's Node version is not installed. Run 'dot pi install'.\n" >&2
+  exit 1
+fi
+
+if [ ! -x "$node_dir/bin/node" ] || [ ! -f "$node_dir/bin/pi" ]; then
+  printf "Pi is not installed for its configured Node version. Run 'dot pi install'.\n" >&2
+  exit 1
+fi
+
+# Pi's updater must use the same npm installation as its runtime.
+if [ "${1:-}" = update ]; then
+  PATH="$node_dir/bin:$PATH"
+  export PATH
+fi
+
+exec "$node_dir/bin/node" "$node_dir/bin/pi" "$@"

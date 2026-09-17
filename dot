@@ -12,6 +12,8 @@ source "${DOT_ROOT}/scripts/lib/common.sh"
 source "${DOT_ROOT}/scripts/lib/brew.sh"
 # shellcheck source=scripts/lib/stow.sh
 source "${DOT_ROOT}/scripts/lib/stow.sh"
+# shellcheck source=scripts/lib/pi.sh
+source "${DOT_ROOT}/scripts/lib/pi.sh"
 # shellcheck source=scripts/lib/doctor.sh
 source "${DOT_ROOT}/scripts/lib/doctor.sh"
 
@@ -26,6 +28,8 @@ Commands:
   update               Pull repo, update Homebrew packages, and restow
   packages install     Install Homebrew packages for the selected profile
   packages check       Check Homebrew packages for the selected profile
+  pi install           Install or update Pi using its asdf runtime
+  pi check             Check the Pi runtime and installation
   profile show         Show the saved package profile
   profile set P        Save base, personal, or work as the profile
   macos                Apply macOS preferences
@@ -70,18 +74,22 @@ cmd_init() {
   info "Installing mac-setup"
   install_homebrew
 
-  local packages_failed=0
+  local setup_failed=0
   if ! install_packages; then
-    packages_failed=1
+    setup_failed=1
     warn "package installation was incomplete; configuration will still be applied"
+  fi
+  if ! install_pi; then
+    setup_failed=1
+    warn "Pi installation was incomplete; configuration will still be applied"
   fi
 
   bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
   stow_home "$archive_legacy_skills"
   link_dot_command
 
-  if (( packages_failed > 0 )); then
-    fail "setup completed with package failures; run 'dot packages install' to retry"
+  if (( setup_failed > 0 )); then
+    fail "setup completed with failures; retry package or Pi installation"
     return 1
   fi
 
@@ -118,16 +126,20 @@ cmd_update() {
   info "Pulling repository changes"
   git -C "$DOT_ROOT" pull --ff-only
 
-  local packages_failed=0
+  local update_failed=0
   if ! update_packages; then
-    packages_failed=1
+    update_failed=1
     warn "package update was incomplete; configuration will still be applied"
+  fi
+  if ! install_pi; then
+    update_failed=1
+    warn "Pi update was incomplete; configuration will still be applied"
   fi
 
   stow_home
 
-  if (( packages_failed > 0 )); then
-    fail "update completed with package failures"
+  if (( update_failed > 0 )); then
+    fail "update completed with failures"
     return 1
   fi
 
@@ -153,6 +165,32 @@ cmd_packages() {
       ;;
     *)
       fail "unknown packages command: $subcommand"
+      ;;
+  esac
+}
+
+cmd_pi() {
+  local subcommand="${1:-help}"
+  shift || true
+
+  case "$subcommand" in
+    install|update)
+      require_no_args "pi $subcommand" "$@"
+      install_pi
+      ;;
+    check)
+      require_no_args "pi check" "$@"
+      if check_pi_install; then
+        success "Pi $(pi_version) is using Node $(pi_node_version)"
+      else
+        fail "Pi installation is missing or broken; run 'dot pi install'"
+      fi
+      ;;
+    help|-h|--help)
+      printf 'Usage: dot pi <install|update|check>\n'
+      ;;
+    *)
+      fail "unknown pi command: $subcommand"
       ;;
   esac
 }
@@ -196,6 +234,7 @@ main() {
     doctor) require_no_args doctor "$@"; run_doctor ;;
     update) cmd_update "$@" ;;
     packages) cmd_packages "$@" ;;
+    pi) cmd_pi "$@" ;;
     profile) cmd_profile "$@" ;;
     macos) require_no_args macos "$@"; require_macos; bash "${DOT_ROOT}/scripts/macos.sh" ;;
     dock) require_no_args dock "$@"; require_macos; bash "${DOT_ROOT}/scripts/dock.sh" ;;

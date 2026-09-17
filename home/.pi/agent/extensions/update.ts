@@ -4,6 +4,7 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 type UpdateRunResult =
@@ -11,15 +12,47 @@ type UpdateRunResult =
   | { kind: "cancelled" }
   | { kind: "failed"; message: string };
 
+const parseNodeVersion = (value: string): number[] | undefined => {
+  const match = value.trim().match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+  return match ? match.slice(1).map(Number) : undefined;
+};
+
+const isNewerVersion = (candidate: string, current: string): boolean => {
+  const candidateParts = parseNodeVersion(candidate);
+  const currentParts = parseNodeVersion(current);
+  if (!candidateParts || !currentParts) return false;
+
+  for (let index = 0; index < candidateParts.length; index += 1) {
+    if (candidateParts[index] !== currentParts[index]) {
+      return candidateParts[index] > currentParts[index];
+    }
+  }
+  return false;
+};
+
 export default function (pi: ExtensionAPI) {
   pi.registerCommand("update", {
-    description: "Update Pi and installed extensions",
+    description: "Update the Pi runtime, Pi, and installed extensions",
     handler: async (_args, ctx) => {
+      const runtimeDir = join(homedir(), ".config", "pi-runtime");
+      const toolVersionsPath = join(runtimeDir, ".tool-versions");
+
       const getPiVersion = async (): Promise<string | undefined> => {
         const result = await pi.exec("pi", ["--version"]);
         return result.code === 0
           ? result.stdout.trim() || undefined
           : undefined;
+      };
+
+      const getConfiguredNodeVersion = async (): Promise<
+        string | undefined
+      > => {
+        try {
+          const contents = await readFile(toolVersionsPath, "utf8");
+          return contents.match(/^nodejs\s+(\S+)/m)?.[1];
+        } catch {
+          return undefined;
+        }
       };
 
       const getInstalledPackageVersions = async (): Promise<
@@ -69,14 +102,19 @@ export default function (pi: ExtensionAPI) {
       };
 
       const runUpdate = async (
+        command: string,
         args: string[],
         message: string,
+        cwd?: string,
       ): Promise<UpdateRunResult> => {
         ctx.ui.setStatus("update", message);
 
         if (ctx.mode !== "tui") {
           try {
-            return { kind: "completed", result: await pi.exec("pi", args) };
+            return {
+              kind: "completed",
+              result: await pi.exec(command, args, { cwd }),
+            };
           } catch (error) {
             return {
               kind: "failed",
@@ -96,7 +134,7 @@ export default function (pi: ExtensionAPI) {
             };
 
             loader.onAbort = () => finish({ kind: "cancelled" });
-            pi.exec("pi", args, { signal: loader.signal })
+            pi.exec(command, args, { cwd, signal: loader.signal })
               .then((result) => finish({ kind: "completed", result }))
               .catch((error) =>
                 finish({
@@ -111,44 +149,139 @@ export default function (pi: ExtensionAPI) {
         );
       };
 
+      const requireUpdate = async (
+        command: string,
+        args: string[],
+        message: string,
+        cwd?: string,
+      ): Promise<ExecResult | undefined> => {
+        const update = await runUpdate(command, args, message, cwd);
+        if (update.kind === "cancelled") {
+          ctx.ui.notify("Update cancelled.", "info");
+          return undefined;
+        }
+        if (update.kind === "failed" || update.result.code !== 0) {
+          const failure =
+            update.kind === "failed"
+              ? update.message
+              : update.result.stderr ||
+                update.result.stdout ||
+                `${message} failed`;
+          ctx.ui.notify(failure, "error");
+          return undefined;
+        }
+        return update.result;
+      };
+
       let reloading = false;
       try {
         ctx.ui.setStatus("update", "Checking installed versions...");
         const piVersionBefore = await getPiVersion();
         const packageVersionsBefore = await getInstalledPackageVersions();
+        const nodeVersionBefore = await getConfiguredNodeVersion();
+        let nodeVersionAfter = nodeVersionBefore;
+        let nodeUpdated = false;
 
-        const self = await runUpdate(["update"], "Updating Pi...");
-        if (self.kind === "cancelled") {
-          ctx.ui.notify("Update cancelled.", "info");
-          return;
-        }
-        if (self.kind === "failed" || self.result.code !== 0) {
-          const message =
-            self.kind === "failed"
-              ? self.message
-              : self.result.stderr || self.result.stdout || "Pi update failed";
-          ctx.ui.notify(message, "error");
-          return;
+        if (nodeVersionBefore && parseNodeVersion(nodeVersionBefore)) {
+          const nodeMajor = parseNodeVersion(nodeVersionBefore)?.[0];
+          const latest = await pi.exec(
+            "asdf",
+            ["latest", "nodejs", String(nodeMajor)],
+            { cwd: runtimeDir },
+          );
+          const latestVersion = latest.stdout.trim();
+
+          if (
+            latest.code === 0 &&
+            isNewerVersion(latestVersion, nodeVersionBefore) &&
+            ctx.hasUI
+          ) {
+            const updateNode = await ctx.ui.confirm(
+              "Update Pi's Node runtime?",
+              `${nodeVersionBefore} -> ${latestVersion}\n\nThis updates the tracked pi-runtime/.tool-versions file.`,
+            );
+
+            if (updateNode) {
+              const installed = await requireUpdate(
+                "asdf",
+                ["install", "nodejs", latestVersion],
+                `Installing Node ${latestVersion}...`,
+                runtimeDir,
+              );
+              if (!installed) return;
+
+              const nodeDirResult = await requireUpdate(
+                "asdf",
+                ["where", "nodejs", latestVersion],
+                "Resolving the new Node runtime...",
+                runtimeDir,
+              );
+              if (!nodeDirResult) return;
+
+              const nodeDir = nodeDirResult.stdout.trim();
+              const nodeBin = join(nodeDir, "bin", "node");
+              const npmCli = join(
+                nodeDir,
+                "lib",
+                "node_modules",
+                "npm",
+                "bin",
+                "npm-cli.js",
+              );
+              const piInstalled = await requireUpdate(
+                nodeBin,
+                [
+                  npmCli,
+                  "install",
+                  "-g",
+                  "--ignore-scripts",
+                  "--min-release-age=0",
+                  "--no-fund",
+                  "--no-audit",
+                  "@earendil-works/pi-coding-agent",
+                ],
+                `Installing Pi for Node ${latestVersion}...`,
+                runtimeDir,
+              );
+              if (!piInstalled) return;
+
+              const reshimmed = await requireUpdate(
+                "asdf",
+                ["reshim", "nodejs", latestVersion],
+                "Refreshing asdf shims...",
+                runtimeDir,
+              );
+              if (!reshimmed) return;
+
+              const configured = await requireUpdate(
+                "asdf",
+                ["set", "nodejs", latestVersion],
+                "Updating Pi's Node configuration...",
+                runtimeDir,
+              );
+              if (!configured) return;
+
+              nodeVersionAfter = latestVersion;
+              nodeUpdated = true;
+            }
+          }
         }
 
-        const extensions = await runUpdate(
+        if (!nodeUpdated) {
+          const self = await requireUpdate(
+            "pi",
+            ["update"],
+            "Updating Pi...",
+          );
+          if (!self) return;
+        }
+
+        const extensions = await requireUpdate(
+          "pi",
           ["update", "--extensions"],
           "Updating extensions...",
         );
-        if (extensions.kind === "cancelled") {
-          ctx.ui.notify("Extension update cancelled.", "info");
-          return;
-        }
-        if (extensions.kind === "failed" || extensions.result.code !== 0) {
-          const message =
-            extensions.kind === "failed"
-              ? extensions.message
-              : extensions.result.stderr ||
-                extensions.result.stdout ||
-                "Extension update failed";
-          ctx.ui.notify(message, "error");
-          return;
-        }
+        if (!extensions) return;
 
         ctx.ui.setStatus("update", "Checking updated versions...");
         const piVersionAfter = await getPiVersion();
@@ -157,9 +290,7 @@ export default function (pi: ExtensionAPI) {
           ([key, version]) => packageVersionsBefore.get(key) !== version,
         ).length;
 
-        if (!ctx.hasUI) {
-          return;
-        }
+        if (!ctx.hasUI) return;
 
         const theme = ctx.ui.theme;
         const piSummary =
@@ -171,11 +302,34 @@ export default function (pi: ExtensionAPI) {
                 "muted",
                 `Pi updated: no${piVersionAfter ? ` (${piVersionAfter})` : ""}`,
               );
+        const nodeSummary = nodeUpdated
+          ? `${theme.fg("success", "Node updated:")} ${theme.fg("muted", nodeVersionBefore ?? "unknown")} ${theme.fg("accent", "->")} ${theme.fg("success", nodeVersionAfter ?? "unknown")}`
+          : theme.fg(
+              "muted",
+              `Node updated: no${nodeVersionAfter ? ` (${nodeVersionAfter})` : ""}`,
+            );
         const extensionSummary =
           extensionsUpdated > 0
             ? `${theme.fg("success", "Extensions updated:")} ${theme.fg("accent", String(extensionsUpdated))}`
             : theme.fg("muted", "Extensions updated: 0");
-        const summary = `${piSummary}\n${extensionSummary}`;
+        const summary = `${nodeSummary}\n${piSummary}\n${extensionSummary}`;
+
+        if (nodeUpdated) {
+          const exitNow = await ctx.ui.confirm(
+            theme.fg("accent", theme.bold("Update complete")),
+            `${summary}\n\n${theme.fg("text", "Exit Pi now to use the new Node runtime?")}`,
+          );
+          if (exitNow) {
+            ctx.ui.setStatus("update", undefined);
+            ctx.shutdown();
+            return;
+          }
+          ctx.ui.notify(
+            "Updates installed. Restart Pi to use the new Node runtime.",
+            "info",
+          );
+          return;
+        }
 
         const reload = await ctx.ui.confirm(
           theme.fg("accent", theme.bold("Update check complete")),
