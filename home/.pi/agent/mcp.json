@@ -16,6 +16,9 @@
       "approveTools": [
         "figma_execute"
       ]
+    },
+    "mobbin": {
+      "url": "https://api.mobbin.com/mcp"
     }
   }
 }
