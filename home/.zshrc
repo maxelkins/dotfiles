@@ -91,3 +91,6 @@ add-zsh-hook precmd _starship_blank_line_precmd
 
 # Load 1Password shell plugins, including secure GitHub CLI authentication.
 [[ -f "$HOME/.config/op/plugins.sh" ]] && source "$HOME/.config/op/plugins.sh"
+
+# Load Vite+ when installed (https://viteplus.dev).
+[[ -f "$HOME/.config/vite-plus/env" ]] && source "$HOME/.config/vite-plus/env"
