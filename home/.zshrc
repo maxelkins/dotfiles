@@ -90,4 +90,4 @@ add-zsh-hook preexec _starship_blank_line_preexec
 add-zsh-hook precmd _starship_blank_line_precmd
 
 # Load Vite+ when installed (https://viteplus.dev).
-[[ -f "$HOME/.config/vite-plus/env" ]] && source "$HOME/.config/vite-plus/env"
+[[ -r "$HOME/.config/vite-plus/env" ]] && source "$HOME/.config/vite-plus/env"
