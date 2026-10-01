@@ -62,7 +62,7 @@ prepare_managed_files() {
     if [[ -e "$target" || -L "$target" ]]; then
       backup_target "$target"
     fi
-  done < <(find "$DOT_HOME_DIR" -type f | LC_ALL=C sort)
+  done < <(find "$DOT_HOME_DIR" -type f ! -name '.DS_Store' | LC_ALL=C sort)
 }
 
 migrate_legacy_pi_skills() {
@@ -117,7 +117,7 @@ stow_home() {
   prepare_managed_files
 
   info "Stowing home directory"
-  stow --restow --no-folding --dir "$DOT_ROOT" --target "$HOME" home
+  stow --restow --no-folding --ignore='\.DS_Store' --dir "$DOT_ROOT" --target "$HOME" home
   sync_claude_skills
   success "managed files now point to $DOT_HOME_DIR"
   success "shared agent skills are available to Claude Code"

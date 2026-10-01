@@ -18,6 +18,7 @@ brew "stow"
 brew "syncthing"
 brew "tmux"
 brew "wget"
+brew "worktrunk"
 brew "dockutil"
 
 # Casks

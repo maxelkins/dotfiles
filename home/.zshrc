@@ -91,3 +91,5 @@ add-zsh-hook precmd _starship_blank_line_precmd
 
 # Load Vite+ when installed (https://viteplus.dev).
 [[ -r "$HOME/.config/vite-plus/env" ]] && source "$HOME/.config/vite-plus/env"
+
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
