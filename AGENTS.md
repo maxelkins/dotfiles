@@ -15,6 +15,10 @@ This repository manages a macOS home directory with GNU Stow.
 - Use `dot stow` for managed links. Its preflight backs up conflicts before GNU Stow runs.
 - Keep `dot macos` and `dot dock` opt-in. They change host state.
 
+## Commits
+
+- Use Conventional Commits for commit messages.
+
 ## Verification
 
 After shell or layout changes, run:

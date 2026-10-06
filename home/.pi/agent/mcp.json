@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "figma-desktop": {
+      "enabled": false,
+      "url": "http://127.0.0.1:3845/mcp",
+      "description": "Inspect and edit the current Figma design"
+    },
+    "mobbin": {
+      "url": "https://api.mobbin.com/mcp",
+      "description": "Search Mobbin app and web design references"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
-  "lastChangelogVersion": "0.87.1",
-  "theme": "cobalt2",
+  "lastChangelogVersion": "1.0.4",
+  "theme": "system",
   "tuiMode": "fullscreen",
   "fullscreenExitOutput": "resume-hint",
   "hideThinkingBlock": false,
@@ -15,10 +15,6 @@
     },
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-ask-user-question",
-    "npm:pi-mcp-adapter",
     "npm:pi-zentui"
-  ],
-  "extensions": [
-    "extensions/welcome-header.ts"
   ]
 }
