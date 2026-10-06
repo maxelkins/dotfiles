@@ -47,7 +47,9 @@ function captureMermaidConfig(colorScheme: "light" | "dark") {
   );
 
   if (!captured?.themeVariables) {
-    throw new Error(`Mermaid example did not initialize the ${colorScheme} palette`);
+    throw new Error(
+      `Mermaid example did not initialize the ${colorScheme} palette`,
+    );
   }
 
   return { name: colorScheme, config: captured };
@@ -81,7 +83,10 @@ describe("plannotator-visual-explainer Mermaid theming", () => {
   });
 
   test("renders representative Mermaid 11 diagrams in both palettes", async () => {
-    const palettes = [captureMermaidConfig("light"), captureMermaidConfig("dark")];
+    const palettes = [
+      captureMermaidConfig("light"),
+      captureMermaidConfig("dark"),
+    ];
     const uiPackageDir = join(import.meta.dir, "../../../../packages/ui");
     const renderProbe = String.raw`
       import { GlobalRegistrator } from "@happy-dom/global-registrator";

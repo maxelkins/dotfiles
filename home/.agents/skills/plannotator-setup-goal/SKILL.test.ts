@@ -11,9 +11,15 @@ describe("plannotator-setup-goal skill", () => {
     expect(skill).toContain("goals/<slug>/interview.json");
     expect(skill).toContain("goals/<slug>/interview-result.json");
     expect(skill).toContain("Do not ask obvious confirmation questions");
-    expect(skill).toContain("Before moving to facts, read every answer and note carefully");
-    expect(skill).toContain("be absolutely patient and keep waiting on the user");
-    expect(skill).toContain("Do not close, kill, restart, refresh, or open a second copy");
+    expect(skill).toContain(
+      "Before moving to facts, read every answer and note carefully",
+    );
+    expect(skill).toContain(
+      "be absolutely patient and keep waiting on the user",
+    );
+    expect(skill).toContain(
+      "Do not close, kill, restart, refresh, or open a second copy",
+    );
     expect(skill).not.toContain("setup-goal interview -");
   });
 
@@ -26,7 +32,9 @@ describe("plannotator-setup-goal skill", () => {
     const grillSection = skill.slice(grillStart, bundleStart);
     expect(grillSection).toContain("This is opt-in");
     expect(grillSection).toContain("Ask the questions one at a time.");
-    expect(grillSection).toContain("If a question can be answered by exploring the codebase");
+    expect(grillSection).toContain(
+      "If a question can be answered by exploring the codebase",
+    );
   });
 
   test("facts phase captures automated verification selections", () => {

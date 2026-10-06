@@ -36,6 +36,11 @@ require_macos() {
   fi
 }
 
+configure_git_hooks() {
+  git -C "$DOT_ROOT" config core.hooksPath .githooks
+  success "configured repository Git hooks"
+}
+
 link_dot_command() {
   local bin_dir="${HOME}/.local/bin"
   local target="${bin_dir}/dot"

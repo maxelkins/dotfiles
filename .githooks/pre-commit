@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+if [[ -x node_modules/.bin/prettier ]]; then
+  prettier_command=(node_modules/.bin/prettier)
+elif command -v prettier >/dev/null 2>&1; then
+  prettier_command=(prettier)
+else
+  printf 'pre-commit: prettier is not installed; run: npm install\n' >&2
+  exit 1
+fi
+
+"${prettier_command[@]}" --check --ignore-path .gitignore --ignore-path .prettierignore .

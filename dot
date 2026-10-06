@@ -87,6 +87,7 @@ cmd_init() {
   bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
   stow_home "$archive_legacy_skills"
   link_dot_command
+  configure_git_hooks
 
   if (( setup_failed > 0 )); then
     fail "setup completed with failures; retry package or Pi installation"
@@ -137,6 +138,7 @@ cmd_update() {
   fi
 
   stow_home
+  configure_git_hooks
 
   if (( update_failed > 0 )); then
     fail "update completed with failures"

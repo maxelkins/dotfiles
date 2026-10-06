@@ -268,11 +268,7 @@ export default function (pi: ExtensionAPI) {
         }
 
         if (!nodeUpdated) {
-          const self = await requireUpdate(
-            "pi",
-            ["update"],
-            "Updating Pi...",
-          );
+          const self = await requireUpdate("pi", ["update"], "Updating Pi...");
           if (!self) return;
         }
 

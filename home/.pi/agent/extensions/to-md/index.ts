@@ -112,7 +112,8 @@ export default function toMarkdownExtension(pi: ExtensionAPI) {
         try {
           fileName = await generatedFileName(markdown, ctx);
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           ctx.ui.notify(`Could not generate filename: ${message}`, "error");
           return;
         } finally {

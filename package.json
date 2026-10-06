@@ -1,0 +1,12 @@
+{
+  "name": "dotfiles",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write --ignore-path .gitignore --ignore-path .prettierignore .",
+    "format:check": "prettier --check --ignore-path .gitignore --ignore-path .prettierignore .",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
+  }
+}
