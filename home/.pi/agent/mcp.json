@@ -7,6 +7,13 @@
     "mobbin": {
       "url": "https://api.mobbin.com/mcp",
       "description": "Search Mobbin app and web design references"
+    },
+    "home-assistant": {
+      "url": "https://home.m-box.xyz/api/mcp",
+      "oauth": {
+        "clientRegistration": "cimd"
+      },
+      "description": "Control and query Home Assistant devices, entities, and automations"
     }
   }
 }
