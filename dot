@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOT_SCRIPT="${BASH_SOURCE[0]}"
+while [[ -L "$DOT_SCRIPT" ]]; do
+  DOT_SCRIPT_DIR="$(cd -P "$(dirname "$DOT_SCRIPT")" && pwd)"
+  DOT_SCRIPT="$(readlink "$DOT_SCRIPT")"
+  [[ "$DOT_SCRIPT" == /* ]] || DOT_SCRIPT="${DOT_SCRIPT_DIR}/${DOT_SCRIPT}"
+done
+
+DOT_ROOT="$(cd -P "$(dirname "$DOT_SCRIPT")" && pwd)"
 DOT_HOME_DIR="${DOT_ROOT}/home"
-readonly DOT_ROOT DOT_HOME_DIR
+readonly DOT_SCRIPT DOT_ROOT DOT_HOME_DIR
 export DOT_ROOT DOT_HOME_DIR
 
 # shellcheck source=scripts/lib/common.sh
