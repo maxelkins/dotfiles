@@ -1,6 +1,6 @@
 ---
 name: open-pr
-description: Create a GitHub pull request with a simple, consistent body: attribution header, one-line summary, plain-bullet changes, and a screenshots section. Use when the user asks to open/create a PR or a pull request, especially when they want a "simple" summary.
+description: 'Create a GitHub pull request with a simple, consistent body: attribution header, one-line summary, plain-bullet changes, and a screenshots section. Use when the user asks to open/create a PR or a pull request, especially when they want a "simple" summary.'
 ---
 
 # open-pr
