@@ -3,6 +3,7 @@
 run_doctor() {
   local failures=0
   local checked=0
+  local package_output
   local tool source relative target
 
   info "Checking required tools"
@@ -42,9 +43,10 @@ run_doctor() {
 
   if command_exists brew; then
     info "Checking $(current_profile) package profile"
-    if check_packages >/dev/null 2>&1; then
+    if package_output="$(check_packages 2>&1)"; then
       success "declared packages are installed"
     else
+      printf '%s\n' "$package_output" >&2
       warn "one or more declared packages are missing"
       ((failures += 1))
     fi

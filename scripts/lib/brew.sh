@@ -140,7 +140,7 @@ check_packages() {
   for bundle in "${bundles[@]}"; do
     [[ -f "$bundle" ]] || fail "package bundle not found: $bundle"
     info "Checking $(basename "$bundle")"
-    if ! brew bundle check --no-upgrade --file="$bundle"; then
+    if ! brew bundle check --verbose --no-upgrade --file="$bundle"; then
       failed=1
     fi
   done
