@@ -2,11 +2,13 @@
   "mcpServers": {
     "figma-desktop": {
       "url": "http://127.0.0.1:3845/mcp",
-      "description": "Inspect and edit the current Figma design"
+      "description": "Inspect and edit the current Figma design",
+      "enabled": false
     },
     "mobbin": {
       "url": "https://api.mobbin.com/mcp",
-      "description": "Search Mobbin app and web design references"
+      "description": "Search Mobbin app and web design references",
+      "enabled": false
     },
     "home-assistant": {
       "url": "https://home.m-box.xyz/api/mcp",
