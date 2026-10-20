@@ -8,18 +8,18 @@
     "skipLibCheck": true,
     "paths": {
       "@earendil-works/pi-ai": [
-        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/index.d.ts"
+        "/Users/max.elkins/.asdf/installs/nodejs/24.22.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-ai/dist/index.d.ts"
       ],
       "@earendil-works/pi-coding-agent": [
-        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
+        "/Users/max.elkins/.asdf/installs/nodejs/24.22.0/lib/node_modules/@earendil-works/pi-coding-agent/dist/index.d.ts"
       ],
       "@earendil-works/pi-tui": [
-        "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
+        "/Users/max.elkins/.asdf/installs/nodejs/24.22.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@earendil-works/pi-tui/dist/index.d.ts"
       ]
     },
     "types": ["node"],
     "typeRoots": [
-      "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
+      "/Users/max.elkins/.asdf/installs/nodejs/24.22.0/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/@types"
     ]
   },
   "include": ["extensions/**/*.ts"]
