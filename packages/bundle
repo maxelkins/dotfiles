@@ -25,6 +25,7 @@ brew "dockutil"
 # Casks
 cask "ghostty"
 cask "hiddenbar"
+cask "handy"
 cask "raycast"
 cask "rectangle"
 cask "alt-tab"
