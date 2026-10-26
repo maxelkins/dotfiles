@@ -6,9 +6,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/skills.git",
       "skillPath": "skills/find-skills/SKILL.md",
-      "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
+      "skillFolderHash": "76a98a285cb0434f3d39e1a873823556330e398b",
       "installedAt": "2026-04-29T09:37:55.946Z",
-      "updatedAt": "2026-04-29T09:37:55.946Z"
+      "updatedAt": "2026-10-26T15:32:15.064Z"
     },
     "grill-me": {
       "source": "mattpocock/skills",
@@ -35,10 +35,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/handoff/SKILL.md",
-      "skillFolderHash": "2242e8f05424b8c2ae94194a90d97b88d16108ec",
-      "pluginName": "mattpocock-skills",
+      "skillFolderHash": "ce24892bd2d4b9e7fd5ac9b95c03175e18bef388",
       "installedAt": "2026-05-15T13:29:08.826Z",
-      "updatedAt": "2026-08-26T08:19:04.697Z"
+      "updatedAt": "2026-10-26T15:32:16.852Z"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -54,9 +53,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/tdd/SKILL.md",
-      "skillFolderHash": "79288be15c67b849f22b6572056601090fd20913",
+      "skillFolderHash": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6",
       "installedAt": "2026-06-16T15:35:55.642Z",
-      "updatedAt": "2026-08-28T23:55:59.716Z"
+      "updatedAt": "2026-10-26T15:32:18.364Z"
     },
     "plannotator-compound": {
       "source": "backnotprop/plannotator",
@@ -81,28 +80,27 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
       "skillPath": "apps/skills/extra/plannotator-visual-explainer/SKILL.md",
-      "skillFolderHash": "e63f538e4fe05f9b101f3ad11559a79d43073d06",
+      "skillFolderHash": "48b1d39f317db181b75c8c4dafba6b78bb8f17a4",
       "installedAt": "2026-07-24T12:41:20.964Z",
-      "updatedAt": "2026-07-24T12:41:20.964Z"
+      "updatedAt": "2026-10-26T15:32:26.094Z"
     },
     "herdr": {
       "source": "herdrdev/herdr",
       "sourceType": "github",
       "sourceUrl": "https://github.com/herdrdev/herdr.git",
       "skillPath": "skills/herdr/SKILL.md",
-      "skillFolderHash": "f8bb649bb92ddc99e6af463ab9a635da98c7b129",
+      "skillFolderHash": "2be0d86d481d1bb29c62e11ef37b78d27d01b478",
       "installedAt": "2026-08-25T22:34:46.423Z",
-      "updatedAt": "2026-08-25T22:34:46.423Z"
+      "updatedAt": "2026-10-26T15:32:33.385Z"
     },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "f0732035b8b1b60ae39454e4191caef32fa91903",
-      "pluginName": "mattpocock-skills",
+      "skillFolderHash": "28aceb4c9567b985cb47f7db88cf23c9f33af8b8",
       "installedAt": "2026-08-26T08:19:04.696Z",
-      "updatedAt": "2026-08-26T08:19:04.696Z"
+      "updatedAt": "2026-10-26T15:32:19.507Z"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",
@@ -119,9 +117,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/pstack.git",
       "skillPath": "skills/unslop/SKILL.md",
-      "skillFolderHash": "6161508c5c7959b156ff0e4e10b510863b51f9cc",
+      "skillFolderHash": "4e572dd70e5557f490e3991c52ea58f0dcee8936",
       "installedAt": "2026-08-28T13:10:31.736Z",
-      "updatedAt": "2026-08-28T13:10:31.736Z"
+      "updatedAt": "2026-10-26T15:32:36.889Z"
     },
     "visual-explainer": {
       "source": "nicobailon/visual-explainer",
