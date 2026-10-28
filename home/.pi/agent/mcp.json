@@ -15,11 +15,13 @@
       "oauth": {
         "clientRegistration": "cimd"
       },
-      "description": "Control and query Home Assistant devices, entities, and automations"
+      "description": "Control and query Home Assistant devices, entities, and automations",
+      "enabled": false
     },
     "gitlab": {
       "url": "https://gitlab.com/api/v4/mcp",
-      "description": "Access GitLab projects, issues, merge requests, repositories, and CI"
+      "description": "Access GitLab projects, issues, merge requests, repositories, and CI",
+      "enabled": false
     }
   }
 }
