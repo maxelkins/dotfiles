@@ -16,6 +16,10 @@
         "clientRegistration": "cimd"
       },
       "description": "Control and query Home Assistant devices, entities, and automations"
+    },
+    "gitlab": {
+      "url": "https://gitlab.com/api/v4/mcp",
+      "description": "Access GitLab projects, issues, merge requests, repositories, and CI"
     }
   }
 }
