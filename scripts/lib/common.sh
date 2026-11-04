@@ -1,20 +1,59 @@
 #!/usr/bin/env bash
 
 info() {
-  printf '==> %s\n' "$*"
+  printf '\nRunning\n  %s\n' "$*"
 }
 
 success() {
-  printf '  ok: %s\n' "$*"
+  printf '  ✓ %s\n' "$*"
 }
 
 warn() {
-  printf '  warning: %s\n' "$*" >&2
+  printf '  ! %s\n' "$*" >&2
+}
+
+error() {
+  printf '  ✗ %s\n' "$*" >&2
 }
 
 fail() {
-  printf '  error: %s\n' "$*" >&2
+  error "$*"
   return 1
+}
+
+skipped() {
+  printf '  - Skipped: %s\n' "$*" >&2
+}
+
+print_summary() {
+  local title="$1"
+  shift
+  printf '\nSummary\n  %s\n' "$title"
+  while (( $# > 0 )); do
+    printf '  %s\n' "$1"
+    shift
+  done
+}
+
+print_action_required() {
+  printf '\nAction required\n'
+  while (( $# > 0 )); do
+    printf '  %s\n' "$1"
+    shift
+  done
+}
+
+print_next_action() {
+  printf '\nNext action\n  %s\n' "$1"
+}
+
+run_prefixed() {
+  local owner="$1"
+  shift
+  "$@" 2>&1 | while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '  [%s] %s\n' "$owner" "$line"
+  done
+  return "${PIPESTATUS[0]}"
 }
 
 command_exists() {
@@ -37,14 +76,44 @@ require_macos() {
 }
 
 configure_git_hooks() {
-  git -C "$DOT_ROOT" config core.hooksPath .githooks
-  success "configured repository Git hooks"
+  info "Configuring repository hooks"
+  if run_prefixed Git git -C "$DOT_ROOT" config core.hooksPath .githooks; then
+    success "Repository hooks are configured"
+  else
+    error "Repository hooks could not be configured"
+    return 1
+  fi
+}
+
+repository_is_clean() {
+  [[ -z "$(git -C "$1" status --porcelain)" ]]
+}
+
+update_repository() {
+  local root="${1:-$DOT_ROOT}"
+  local branch upstream
+
+  branch="$(git -C "$root" branch --show-current)"
+  if ! upstream="$(git -C "$root" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null)"; then
+    warn "Repository update skipped: branch '${branch:-detached HEAD}' has no upstream"
+    printf '  Configure one with: git -C %q push -u origin %q\n' "$root" "${branch:-<branch>}" >&2
+    return 2
+  fi
+
+  info "Updating repository from $upstream"
+  if run_prefixed Git git -C "$root" pull --ff-only; then
+    success "Repository is up to date"
+  else
+    error "Repository update failed; resolve the Git error, then run: dot upgrade"
+    return 1
+  fi
 }
 
 link_dot_command() {
   local bin_dir="${HOME}/.local/bin"
   local target="${bin_dir}/dot"
 
+  info "Linking the dot command"
   mkdir -p "$bin_dir"
 
   if [[ -e "$target" || -L "$target" ]]; then
@@ -52,12 +121,12 @@ link_dot_command() {
       success "dot command is already linked"
       return 0
     fi
-    fail "$target already exists and is not managed by this repository"
+    error "$target already exists and is not managed by this repository"
     return 1
   fi
 
   ln -s "${DOT_ROOT}/dot" "$target"
-  success "linked $target"
+  success "Linked $target"
 }
 
 unlink_dot_command() {
@@ -70,7 +139,7 @@ unlink_dot_command() {
   fi
 
   if [[ -e "$target" || -L "$target" ]]; then
-    fail "$target is not managed by this repository"
+    error "$target is not managed by this repository"
     return 1
   fi
 

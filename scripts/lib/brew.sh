@@ -33,10 +33,10 @@ save_profile() {
   file="$(profile_file)"
   mkdir -p "$(dirname "$file")"
   printf '%s\n' "$profile" > "$file"
-  success "saved package profile: $profile"
+  success "Saved package profile: $profile"
 }
 
-choose_profile_for_init() {
+choose_profile_for_setup() {
   local requested="${1:-}"
 
   if [[ -n "$requested" ]]; then
@@ -85,9 +85,17 @@ install_homebrew() {
   fi
 
   info "Installing Homebrew"
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  load_brew_environment
-  command_exists brew || fail "Homebrew installed but is unavailable in PATH"
+  if run_prefixed Homebrew env NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+    load_brew_environment
+    if ! command_exists brew; then
+      error "Homebrew installed but is unavailable in PATH"
+      return 1
+    fi
+    success "Homebrew is installed"
+  else
+    error "Homebrew installation failed; run: dot setup"
+    return 1
+  fi
 }
 
 trust_declared_formulae() {
@@ -98,31 +106,41 @@ trust_declared_formulae() {
 
   while IFS= read -r formula; do
     [[ -n "$formula" && "$formula" != \#* ]] || continue
-    info "Trusting formula $formula"
-    brew trust --formula "$formula"
+    if ! run_prefixed Homebrew brew trust --formula "$formula"; then
+      error "Could not trust formula: $formula"
+      return 1
+    fi
   done < "$trust_file"
+}
+
+package_bundles() {
+  local profile="$1"
+  printf '%s\n' "${DOT_ROOT}/packages/bundle"
+  if [[ "$profile" != "base" ]]; then
+    printf '%s\n' "${DOT_ROOT}/packages/bundle.${profile}"
+  fi
 }
 
 install_packages() {
   local profile bundle failed=0
   profile="$(current_profile)"
-  local bundles=("${DOT_ROOT}/packages/bundle")
-  if [[ "$profile" != "base" ]]; then
-    bundles+=("${DOT_ROOT}/packages/bundle.${profile}")
+
+  if ! command_exists brew; then
+    error "Homebrew is required; run: dot setup"
+    return 1
   fi
+  trust_declared_formulae || return 1
+  info "Installing and upgrading the $profile package profile"
 
-  command_exists brew || fail "Homebrew is required"
-  trust_declared_formulae
-  info "Installing $profile package profile"
-
-  for bundle in "${bundles[@]}"; do
-    [[ -f "$bundle" ]] || fail "package bundle not found: $bundle"
-    info "Installing $(basename "$bundle")"
-    if ! brew bundle --file="$bundle"; then
+  while IFS= read -r bundle; do
+    [[ -f "$bundle" ]] || { fail "Package bundle not found: $bundle"; return 1; }
+    if run_prefixed Homebrew brew bundle --file="$bundle"; then
+      success "$(basename "$bundle") is reconciled"
+    else
       warn "$(basename "$bundle") had package failures"
       failed=1
     fi
-  done
+  done < <(package_bundles "$profile")
 
   return "$failed"
 }
@@ -130,27 +148,36 @@ install_packages() {
 check_packages() {
   local profile bundle failed=0
   profile="$(current_profile)"
-  local bundles=("${DOT_ROOT}/packages/bundle")
-  if [[ "$profile" != "base" ]]; then
-    bundles+=("${DOT_ROOT}/packages/bundle.${profile}")
+
+  if ! command_exists brew; then
+    error "Homebrew is required; run: dot setup"
+    return 1
   fi
 
-  command_exists brew || fail "Homebrew is required"
-
-  for bundle in "${bundles[@]}"; do
-    [[ -f "$bundle" ]] || fail "package bundle not found: $bundle"
-    info "Checking $(basename "$bundle")"
-    if ! brew bundle check --verbose --no-upgrade --file="$bundle"; then
+  while IFS= read -r bundle; do
+    [[ -f "$bundle" ]] || { fail "Package bundle not found: $bundle"; return 1; }
+    if ! run_prefixed Homebrew brew bundle check --verbose --no-upgrade --file="$bundle"; then
       failed=1
     fi
-  done
+  done < <(package_bundles "$profile")
 
   return "$failed"
 }
 
 update_packages() {
-  command_exists brew || fail "Homebrew is required"
-  info "Updating Homebrew"
-  brew update
+  if ! command_exists brew; then
+    error "Homebrew is required; run: dot setup"
+    skipped "Homebrew metadata and package updates require Homebrew"
+    return 1
+  fi
+
+  info "Updating Homebrew metadata"
+  if run_prefixed Homebrew brew update; then
+    success "Homebrew metadata is current"
+  else
+    error "Homebrew metadata update failed; run: dot upgrade"
+    skipped "Package reconciliation requires current Homebrew metadata"
+    return 1
+  fi
   install_packages
 }
