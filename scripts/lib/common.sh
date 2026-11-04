@@ -1,19 +1,42 @@
 #!/usr/bin/env bash
 
+# Accent terminal output only; respect https://no-color.org/ and dumb terminals.
+styled_printf() {
+  local style="$1"
+  shift
+  if [[ -t 1 && "${TERM:-}" != dumb && -z "${NO_COLOR+x}" ]]; then
+    printf '\033[%sm' "$style"
+    printf "$@"
+    printf '\033[0m'
+  else
+    printf "$@"
+  fi
+}
+
+print_menu_heading() {
+  styled_printf '1;36' '\n%s\n\n' "$1"
+}
+
+print_menu_option() {
+  styled_printf '36' '[%s]' "$1"
+  printf ' %s\n' "$2"
+}
+
 info() {
-  printf '\nRunning\n  %s\n' "$*"
+  styled_printf '1;36' '\nRunning\n'
+  printf '  %s\n' "$*"
 }
 
 success() {
-  printf '  ✓ %s\n' "$*"
+  styled_printf '32' '  ✓ %s\n' "$*"
 }
 
 warn() {
-  printf '  ! %s\n' "$*" >&2
+  styled_printf '33' '  ! %s\n' "$*" >&2
 }
 
 error() {
-  printf '  ✗ %s\n' "$*" >&2
+  styled_printf '31' '  ✗ %s\n' "$*" >&2
 }
 
 fail() {
@@ -22,13 +45,14 @@ fail() {
 }
 
 skipped() {
-  printf '  - Skipped: %s\n' "$*" >&2
+  styled_printf '2' '  - Skipped: %s\n' "$*" >&2
 }
 
 print_summary() {
   local title="$1"
   shift
-  printf '\nSummary\n  %s\n' "$title"
+  styled_printf '1;36' '\nSummary\n'
+  printf '  %s\n' "$title"
   while (( $# > 0 )); do
     printf '  %s\n' "$1"
     shift
@@ -36,7 +60,7 @@ print_summary() {
 }
 
 print_action_required() {
-  printf '\nAction required\n'
+  styled_printf '1;33' '\nAction required\n'
   while (( $# > 0 )); do
     printf '  %s\n' "$1"
     shift
@@ -44,7 +68,8 @@ print_action_required() {
 }
 
 print_next_action() {
-  printf '\nNext action\n  %s\n' "$1"
+  styled_printf '1;36' '\nNext action\n'
+  printf '  %s\n' "$1"
 }
 
 run_prefixed() {
@@ -54,6 +79,16 @@ run_prefixed() {
     printf '  [%s] %s\n' "$owner" "$line"
   done
   return "${PIPESTATUS[0]}"
+}
+
+# Read a single key at a terminal, but retain line input for scripts and tests.
+read_menu_choice() {
+  if [[ -t 0 ]]; then
+    IFS= read -r -s -n 1 "$1" || return 1
+    printf '\n'
+  else
+    IFS= read -r "$1"
+  fi
 }
 
 command_exists() {

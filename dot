@@ -293,13 +293,13 @@ run_menu_command() {
 
 apply_menu() {
   local choice
-  printf '\nApply configuration\n\n'
-  printf '1) Managed home links\n'
-  printf '2) macOS preferences\n'
-  printf '3) Dock configuration\n'
-  printf 'b) Back\n\n'
-  printf 'Choose an operation: '
-  IFS= read -r choice || return 0
+  print_menu_heading 'Apply configuration'
+  print_menu_option 1 'Managed home links'
+  print_menu_option 2 'macOS preferences'
+  print_menu_option 3 'Dock configuration'
+  print_menu_option b 'Back'
+  printf '\n'
+  read_menu_choice choice || return 0
 
   case "$choice" in
     1) run_menu_command apply home ;;
@@ -312,13 +312,13 @@ apply_menu() {
 
 profile_menu() {
   local choice profile
-  printf '\nChange package profile\n\n'
-  printf '1) base\n'
-  printf '2) personal\n'
-  printf '3) work\n'
-  printf 'b) Back\n\n'
-  printf 'Choose a profile: '
-  IFS= read -r choice || return 0
+  print_menu_heading 'Change package profile'
+  print_menu_option 1 base
+  print_menu_option 2 personal
+  print_menu_option 3 work
+  print_menu_option b 'Back'
+  printf '\n'
+  read_menu_choice choice || return 0
 
   case "$choice" in
     1) profile=base ;;
@@ -335,16 +335,16 @@ interactive_menu() {
 
   while true; do
     profile="$(current_profile 2>/dev/null || printf 'unknown')"
-    printf '\nDotfiles\n'
+    print_menu_heading 'Dotfiles'
     printf 'Current package profile: %s\n\n' "$profile"
-    printf '1) Set up this Mac\n'
-    printf '2) Upgrade everything\n'
-    printf '3) Check health\n'
-    printf '4) Apply configuration\n'
-    printf '5) Change package profile\n'
-    printf 'q) Quit\n\n'
-    printf 'Choose an operation: '
-    IFS= read -r choice || return 0
+    print_menu_option 1 'Set up this Mac'
+    print_menu_option 2 'Upgrade everything'
+    print_menu_option 3 'Check health'
+    print_menu_option 4 'Apply configuration'
+    print_menu_option 5 'Change package profile'
+    print_menu_option q 'Quit'
+    printf '\n'
+    read_menu_choice choice || return 0
 
     case "$choice" in
       1) run_menu_command setup ;;
