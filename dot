@@ -26,233 +26,370 @@ source "${DOT_ROOT}/scripts/lib/doctor.sh"
 
 print_help() {
   cat <<'HELP'
-Usage: dot <command>
+Usage: dot [command]
 
 Commands:
-  init [options]       Install packages and configuration
-  stow [options]       Link the managed home tree with GNU Stow
-  doctor               Check tools, packages, and managed links
-  update               Pull repo, update Homebrew packages, and restow
-  packages install     Install Homebrew packages for the selected profile
-  packages check       Check Homebrew packages for the selected profile
-  pi install           Install or update Pi using its asdf runtime
-  pi check             Check the Pi runtime and installation
-  profile show         Show the saved package profile
-  profile set P        Save base, personal, or work as the profile
-  macos                Apply macOS preferences
-  dock                 Configure Dock applications
-  link                 Link dot into ~/.local/bin
-  unlink               Remove the managed ~/.local/bin/dot link
-  edit                 Open this repository in $EDITOR
-  help                 Show this help
+  setup [profile]         Set up this Mac using base, personal, or work packages
+  upgrade                 Upgrade everything managed by this repository
+  check                   Run read-only health checks
+  apply home [option]     Reconcile managed home links
+  apply macos             Apply macOS preferences
+  apply dock              Configure Dock applications
+  help                    Show this help
 
-Options for init and stow:
-  --archive-legacy-skills  Archive old Pi skill copies before linking
+Options:
+  --archive-legacy-skills Archive old Pi skill copies before applying home links
+
+Run dot without a command to open the interactive menu.
 HELP
 }
 
-cmd_init() {
+cmd_setup() {
   local requested_profile=""
   local archive_legacy_skills=0
+  local failures=0
 
   while (( $# > 0 )); do
     case "$1" in
-      --profile)
-        [[ $# -ge 2 ]] || fail "--profile requires base, personal, or work"
-        requested_profile="$2"
-        shift 2
+      base|personal|work)
+        if [[ -n "$requested_profile" ]]; then
+          error "Only one package profile may be selected"
+          print_summary "Setup did not start"
+          print_action_required "Run: dot setup [base|personal|work]"
+          return 1
+        fi
+        requested_profile="$1"
+        shift
         ;;
       --archive-legacy-skills)
         archive_legacy_skills=1
         shift
         ;;
       *)
-        fail "unknown init option: $1"
+        error "Unknown setup option: $1"
+        print_summary "Setup did not start"
+        print_action_required "Run: dot help"
         return 1
         ;;
     esac
   done
 
-  require_macos
+  info "Setting up packages, Pi, shell tools, managed links, and repository hooks"
+  if ! require_macos; then
+    print_summary "Setup failed before changes were made"
+    print_action_required "Run this command on macOS"
+    return 1
+  fi
+
   local profile
-  profile="$(choose_profile_for_init "$requested_profile")"
+  if ! profile="$(choose_profile_for_setup "$requested_profile")"; then
+    print_summary "Setup failed because the package profile is invalid"
+    print_action_required "Run: dot setup [base|personal|work]"
+    return 1
+  fi
   save_profile "$profile"
 
-  info "Installing mac-setup"
-  install_homebrew
-
-  local setup_failed=0
-  if ! install_packages; then
-    setup_failed=1
-    warn "package installation was incomplete; configuration will still be applied"
-  fi
-  if ! install_pi; then
-    setup_failed=1
-    warn "Pi installation was incomplete; configuration will still be applied"
+  local homebrew_ready=1
+  if ! install_homebrew; then
+    homebrew_ready=0
+    ((failures += 1))
   fi
 
-  bash "${DOT_ROOT}/scripts/ohmyzsh.sh"
-  stow_home "$archive_legacy_skills"
-  link_dot_command
-  configure_git_hooks
+  if (( homebrew_ready == 1 )); then
+    install_packages || ((failures += 1))
+  else
+    skipped "Package installation requires Homebrew"
+  fi
 
-  if (( setup_failed > 0 )); then
-    fail "setup completed with failures; retry package or Pi installation"
+  install_pi || ((failures += 1))
+
+  info "Installing shell dependencies"
+  if run_prefixed Shell bash "${DOT_ROOT}/scripts/ohmyzsh.sh"; then
+    success "Shell dependencies are installed"
+  else
+    error "Shell dependency installation failed"
+    ((failures += 1))
+  fi
+
+  stow_home "$archive_legacy_skills" || ((failures += 1))
+  link_dot_command || ((failures += 1))
+  configure_git_hooks || ((failures += 1))
+
+  if (( failures > 0 )); then
+    print_summary "Setup completed with $failures failed stage(s)"
+    print_action_required "Fix the errors above, then retry: dot setup $profile"
     return 1
   fi
 
-  success "setup complete; restart the terminal, then run 'dot doctor'"
+  print_summary "Setup completed successfully"
+  print_next_action "Restart the terminal, then run: dot check"
 }
 
-cmd_stow() {
-  local archive_legacy_skills=0
+cmd_upgrade() {
+  if ! require_no_args upgrade "$@"; then
+    print_summary "Upgrade did not start"
+    print_action_required "Run: dot upgrade"
+    return 1
+  fi
+  local failures=0
+  local warnings=0
+  local repo_status=0
 
-  while (( $# > 0 )); do
-    case "$1" in
-      --archive-legacy-skills)
-        archive_legacy_skills=1
+  info "Upgrading repository files, packages, Pi, managed links, and health checks"
+
+  if ! repository_is_clean "$DOT_ROOT"; then
+    error "Repository has uncommitted changes"
+    print_summary "Upgrade stopped before making changes"
+    print_action_required "Commit or stash changes shown by: git -C $DOT_ROOT status --short" "Then run: dot upgrade"
+    return 1
+  fi
+
+  if update_repository "$DOT_ROOT"; then
+    :
+  else
+    repo_status=$?
+    if (( repo_status == 2 )); then
+      ((warnings += 1))
+    else
+      ((failures += 1))
+    fi
+  fi
+
+  update_packages || ((failures += 1))
+  install_pi || ((failures += 1))
+  stow_home || ((failures += 1))
+  configure_git_hooks || ((failures += 1))
+
+  info "Verifying the upgraded setup"
+  if ! run_doctor embedded; then
+    ((failures += 1))
+  fi
+
+  if (( failures > 0 )); then
+    print_summary "Upgrade completed with $failures failed stage(s) and $warnings warning(s)"
+    print_action_required "Resolve the failures above, then retry: dot upgrade"
+    return 1
+  fi
+
+  if (( warnings > 0 )); then
+    local branch
+    branch="$(git -C "$DOT_ROOT" branch --show-current)"
+    print_summary "Upgrade completed with $warnings warning(s); managed tools are healthy"
+    print_action_required "Configure repository updates: git -C $DOT_ROOT push -u origin ${branch:-<branch>}"
+    return 0
+  fi
+
+  print_summary "Upgrade completed successfully; no action is required"
+}
+
+cmd_check() {
+  if ! require_no_args check "$@"; then
+    print_summary "Health checks did not start"
+    print_action_required "Run: dot check"
+    return 1
+  fi
+  info "Checking tools, packages, managed links, Pi, and shell dependencies"
+  run_doctor
+}
+
+cmd_apply() {
+  local target="${1:-}"
+  if [[ -z "$target" ]]; then
+    error "Usage: dot apply <home|macos|dock>"
+    print_summary "No configuration was applied"
+    print_action_required "Run: dot apply <home|macos|dock>"
+    return 1
+  fi
+  shift
+
+  case "$target" in
+    home)
+      local archive_legacy_skills=0
+      while (( $# > 0 )); do
+        case "$1" in
+          --archive-legacy-skills) archive_legacy_skills=1 ;;
+          *)
+            error "Unknown apply home option: $1"
+            print_summary "Managed home links were not changed"
+            print_action_required "Run: dot apply home [--archive-legacy-skills]"
+            return 1
+            ;;
+        esac
         shift
-        ;;
-      *)
-        fail "unknown stow option: $1"
-        return 1
-        ;;
-    esac
-  done
-
-  stow_home "$archive_legacy_skills"
-}
-
-cmd_update() {
-  require_no_args update "$@"
-
-  if [[ -n "$(git -C "$DOT_ROOT" status --porcelain)" ]]; then
-    fail "repository has uncommitted changes; commit or stash them before updating"
-    return 1
-  fi
-
-  info "Pulling repository changes"
-  git -C "$DOT_ROOT" pull --ff-only
-
-  local update_failed=0
-  if ! update_packages; then
-    update_failed=1
-    warn "package update was incomplete; configuration will still be applied"
-  fi
-  if ! install_pi; then
-    update_failed=1
-    warn "Pi update was incomplete; configuration will still be applied"
-  fi
-
-  stow_home
-  configure_git_hooks
-
-  if (( update_failed > 0 )); then
-    fail "update completed with failures"
-    return 1
-  fi
-
-  success "update complete"
-}
-
-cmd_packages() {
-  local subcommand="${1:-help}"
-  shift || true
-
-  case "$subcommand" in
-    install)
-      require_no_args "packages install" "$@"
-      install_homebrew
-      install_packages
-      ;;
-    check)
-      require_no_args "packages check" "$@"
-      check_packages
-      ;;
-    help|-h|--help)
-      printf 'Usage: dot packages <install|check>\n'
-      ;;
-    *)
-      fail "unknown packages command: $subcommand"
-      ;;
-  esac
-}
-
-cmd_pi() {
-  local subcommand="${1:-help}"
-  shift || true
-
-  case "$subcommand" in
-    install|update)
-      require_no_args "pi $subcommand" "$@"
-      install_pi
-      ;;
-    check)
-      require_no_args "pi check" "$@"
-      if check_pi_install; then
-        success "Pi $(pi_version) is using Node $(pi_node_version)"
+      done
+      info "Reconciling managed home links with conflict backups"
+      if stow_home "$archive_legacy_skills"; then
+        print_summary "Managed home links were applied successfully"
+        print_next_action "Run: dot check"
       else
-        fail "Pi installation is missing or broken; run 'dot pi install'"
+        print_summary "Managed home links could not be applied"
+        print_action_required "Fix the error above, then retry: dot apply home"
+        return 1
       fi
       ;;
-    help|-h|--help)
-      printf 'Usage: dot pi <install|update|check>\n'
+    macos)
+      if ! require_no_args "apply macos" "$@"; then
+        print_summary "macOS preferences were not changed"
+        print_action_required "Run: dot apply macos"
+        return 1
+      fi
+      info "Applying opt-in macOS preferences"
+      if ! require_macos; then
+        print_summary "macOS preferences were not changed"
+        print_action_required "Run this command on macOS"
+        return 1
+      fi
+      if run_prefixed macOS bash "${DOT_ROOT}/scripts/macos.sh"; then
+        print_summary "macOS preferences were applied successfully"
+        print_next_action "Restart affected applications or log out if a setting has not refreshed"
+      else
+        print_summary "Some macOS preferences could not be applied"
+        print_action_required "Fix the error above, then retry: dot apply macos"
+        return 1
+      fi
+      ;;
+    dock)
+      if ! require_no_args "apply dock" "$@"; then
+        print_summary "Dock configuration was not changed"
+        print_action_required "Run: dot apply dock"
+        return 1
+      fi
+      info "Applying the opt-in Dock configuration"
+      if ! require_macos; then
+        print_summary "Dock configuration was not changed"
+        print_action_required "Run this command on macOS"
+        return 1
+      fi
+      if run_prefixed Dock bash "${DOT_ROOT}/scripts/dock.sh"; then
+        print_summary "Dock configuration was applied successfully; no action is required"
+      else
+        print_summary "Dock configuration could not be applied"
+        print_action_required "Fix the error above, then retry: dot apply dock"
+        return 1
+      fi
       ;;
     *)
-      fail "unknown pi command: $subcommand"
+      error "Unknown apply target: $target"
+      print_summary "No configuration was applied"
+      print_action_required "Run: dot apply <home|macos|dock>"
+      return 1
       ;;
   esac
 }
 
-cmd_profile() {
-  local subcommand="${1:-show}"
-  shift || true
+cmd_change_profile() {
+  local profile="$1"
+  if save_profile "$profile"; then
+    print_summary "Package profile changed to $profile"
+    print_action_required "Install the selected packages: dot upgrade"
+  fi
+}
 
-  case "$subcommand" in
-    show)
-      require_no_args "profile show" "$@"
-      current_profile
-      ;;
-    set)
-      [[ $# -eq 1 ]] || fail "usage: dot profile set <base|personal|work>"
-      save_profile "$1"
-      ;;
-    help|-h|--help)
-      printf 'Usage: dot profile <show|set base|personal|work>\n'
-      ;;
-    *)
-      fail "unknown profile command: $subcommand"
-      ;;
+run_menu_command() {
+  if ! dispatch_command "$@"; then
+    printf '\nThe operation did not complete successfully.\n' >&2
+  fi
+}
+
+apply_menu() {
+  local choice
+  print_menu_heading 'Apply configuration'
+  print_menu_option 1 'Managed home links'
+  print_menu_option 2 'macOS preferences'
+  print_menu_option 3 'Dock configuration'
+  print_menu_option b 'Back'
+  printf '\n'
+  read_menu_choice choice || return 0
+
+  case "$choice" in
+    1) run_menu_command apply home ;;
+    2) run_menu_command apply macos ;;
+    3) run_menu_command apply dock ;;
+    b|B|'') return 0 ;;
+    *) warn "Invalid choice '$choice'; choose 1, 2, 3, or b" ;;
   esac
 }
 
-cmd_edit() {
-  require_no_args edit "$@"
-  local editor="${EDITOR:-}"
-  [[ -n "$editor" ]] || fail "EDITOR is not set"
-  "$editor" "$DOT_ROOT"
+profile_menu() {
+  local choice profile
+  print_menu_heading 'Change package profile'
+  print_menu_option 1 base
+  print_menu_option 2 personal
+  print_menu_option 3 work
+  print_menu_option b 'Back'
+  printf '\n'
+  read_menu_choice choice || return 0
+
+  case "$choice" in
+    1) profile=base ;;
+    2) profile=personal ;;
+    3) profile=work ;;
+    b|B|'') return 0 ;;
+    *) warn "Invalid choice '$choice'; choose 1, 2, 3, or b"; return 0 ;;
+  esac
+  cmd_change_profile "$profile"
 }
 
-main() {
+interactive_menu() {
+  local choice profile
+
+  while true; do
+    profile="$(current_profile 2>/dev/null || printf 'unknown')"
+    styled_printf '1;31' '\nDot\n\n'
+    printf 'Current package profile: %s\n\n' "$profile"
+    print_menu_option 1 'Set up this Mac'
+    print_menu_option 2 'Upgrade everything'
+    print_menu_option 3 'Check health'
+    print_menu_option 4 'Apply configuration'
+    print_menu_option 5 'Change package profile'
+    print_menu_option q 'Quit'
+    printf '\n'
+    read_menu_choice choice || return 0
+
+    case "$choice" in
+      1) run_menu_command setup ;;
+      2) run_menu_command upgrade ;;
+      3) run_menu_command check ;;
+      4) apply_menu ;;
+      5) profile_menu ;;
+      q|Q) return 0 ;;
+      *) warn "Invalid choice '$choice'; choose 1-5 or q" ;;
+    esac
+  done
+}
+
+dispatch_command() {
   local command="${1:-help}"
   shift || true
 
   case "$command" in
-    init) cmd_init "$@" ;;
-    stow) cmd_stow "$@" ;;
-    doctor) require_no_args doctor "$@"; run_doctor ;;
-    update) cmd_update "$@" ;;
-    packages) cmd_packages "$@" ;;
-    pi) cmd_pi "$@" ;;
-    profile) cmd_profile "$@" ;;
-    macos) require_no_args macos "$@"; require_macos; bash "${DOT_ROOT}/scripts/macos.sh" ;;
-    dock) require_no_args dock "$@"; require_macos; bash "${DOT_ROOT}/scripts/dock.sh" ;;
-    link) require_no_args link "$@"; link_dot_command ;;
-    unlink) require_no_args unlink "$@"; unlink_dot_command ;;
-    edit) cmd_edit "$@" ;;
+    setup) cmd_setup "$@" ;;
+    upgrade) cmd_upgrade "$@" ;;
+    check) cmd_check "$@" ;;
+    apply) cmd_apply "$@" ;;
     help|-h|--help) print_help ;;
-    *) fail "unknown command: $command"; printf "Run 'dot help' for usage.\n" >&2 ;;
+    *)
+      error "Unknown command: $command"
+      print_summary "No operation was run"
+      print_action_required "Run: dot help"
+      return 1
+      ;;
   esac
 }
 
-main "$@"
+main() {
+  if (( $# == 0 )); then
+    if [[ -t 0 ]]; then
+      interactive_menu
+    else
+      print_help
+    fi
+    return
+  fi
+
+  dispatch_command "$@"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

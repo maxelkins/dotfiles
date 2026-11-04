@@ -80,7 +80,7 @@ migrate_legacy_pi_skills() {
       backup_target "$legacy"
     else
       warn "legacy Pi skill differs from shared skill; left untouched: ~/.pi/agent/skills/${name}"
-      warn "run 'dot stow --archive-legacy-skills' to archive it and use the repo copy"
+      warn "Run 'dot apply home --archive-legacy-skills' to archive it and use the repo copy"
     fi
   done
 }
@@ -107,22 +107,31 @@ sync_claude_skills() {
 stow_home() {
   local archive_legacy_skills="${1:-0}"
 
-  command_exists stow || fail "GNU Stow is required; run './dot packages install'"
-  [[ -d "$DOT_HOME_DIR" ]] || fail "managed home tree not found: $DOT_HOME_DIR"
+  if ! command_exists stow; then
+    error "GNU Stow is required; run: dot setup"
+    return 1
+  fi
+  if [[ ! -d "$DOT_HOME_DIR" ]]; then
+    error "Managed home tree not found: $DOT_HOME_DIR"
+    return 1
+  fi
 
   DOT_BACKUP_SESSION=""
-  info "Checking managed paths"
+  info "Checking managed home paths"
   migrate_legacy_pi_skills "$archive_legacy_skills"
   prepare_managed_directories
   prepare_managed_files
 
-  info "Stowing home directory"
-  stow --restow --no-folding --ignore='\.DS_Store' --dir "$DOT_ROOT" --target "$HOME" home
+  info "Applying managed home links"
+  if ! run_prefixed Stow stow --restow --no-folding --ignore='\.DS_Store' --dir "$DOT_ROOT" --target "$HOME" home; then
+    error "Managed home links could not be applied; run: dot apply home"
+    return 1
+  fi
   sync_claude_skills
-  success "managed files now point to $DOT_HOME_DIR"
-  success "shared agent skills are available to Claude Code"
+  success "Managed files point to $DOT_HOME_DIR"
+  success "Shared agent skills are available to Claude Code"
 
   if [[ -n "$DOT_BACKUP_SESSION" ]]; then
-    warn "existing files were saved under $DOT_BACKUP_SESSION"
+    warn "Existing files were saved under $DOT_BACKUP_SESSION"
   fi
 }
