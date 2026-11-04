@@ -335,7 +335,7 @@ interactive_menu() {
 
   while true; do
     profile="$(current_profile 2>/dev/null || printf 'unknown')"
-    print_menu_heading 'Dotfiles'
+    styled_printf '1;31' '\nDot\n\n'
     printf 'Current package profile: %s\n\n' "$profile"
     print_menu_option 1 'Set up this Mac'
     print_menu_option 2 'Upgrade everything'

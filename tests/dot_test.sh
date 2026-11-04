@@ -86,11 +86,11 @@ try:
     wait_for_exit(pid)
 finally:
     cleanup(pid, master)
-if b"Dotfiles" not in output or b"Current package profile:" not in output:
+if b"Dot\r\n" not in output or b"Current package profile:" not in output:
     sys.stderr.write(output.decode(errors="replace"))
     raise SystemExit(1)
 
-assert b'\x1b[' in output, 'TTY menu should have colour accents'
+assert b'\x1b[1;31m\r\nDot\r\n' in output, 'TTY title should be Dot in red'
 plain = re.sub(rb'\x1b\[[0-9;]*m', b'', output)
 assert b'[1] Set up this Mac' in plain
 assert b'[q] Quit' in plain
