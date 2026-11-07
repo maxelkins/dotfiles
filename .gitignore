@@ -14,7 +14,9 @@ home/.config/herdr/plugins/
 home/.config/herdr/.plugins.lock
 
 # Pi runtime and secrets
+home/.pi/agent/auth.json
 home/.pi/agent/mcp-auth.json
+home/.pi/agent/models.json
 home/.pi/agent/sessions/
 home/.pi/agent/node_modules/
 home/.pi/todos/
