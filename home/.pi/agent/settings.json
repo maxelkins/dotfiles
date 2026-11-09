@@ -1,13 +1,13 @@
 {
   "$schema": "https://pi.dev/schemas/settings.schema.json",
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.0",
   "theme": "system",
   "tuiMode": "fullscreen",
   "fullscreenExitOutput": "resume-hint",
-  "hideThinkingBlock": false,
+  "hideThinkingBlock": true,
   "quietStartup": "header",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "glm-5.3",
   "defaultThinkingLevel": "medium",
   "packages": [
     {
@@ -17,5 +17,8 @@
     "npm:pi-web-access",
     "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-zentui"
-  ]
+  ],
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.46.0"
+  }
 }

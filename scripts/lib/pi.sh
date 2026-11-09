@@ -26,42 +26,39 @@ pi_version() {
 
 install_pi() {
   if ! command_exists asdf; then
-    fail "asdf is required to install Pi"
+    error "asdf is required to install Pi; run: dot setup"
     return 1
   fi
   if [[ ! -f "${PI_RUNTIME_DIR}/.tool-versions" ]]; then
-    fail "Pi .tool-versions is missing"
+    error "Pi .tool-versions is missing; restore it from the repository"
     return 1
   fi
 
   local node_dir node_version npm_cli
   if ! asdf plugin list | grep -qx nodejs; then
-    info "Adding the asdf nodejs plugin"
-    asdf plugin add nodejs || return 1
+    info "Adding the asdf Node.js plugin"
+    run_prefixed asdf asdf plugin add nodejs || return 1
   fi
 
-  info "Installing Pi with its asdf runtime"
-  (
-    cd "$PI_RUNTIME_DIR"
-    asdf install nodejs
-  ) || return 1
+  info "Installing Pi with its isolated asdf runtime"
+  run_prefixed asdf bash -c 'cd "$1" && asdf install nodejs' _ "$PI_RUNTIME_DIR" || return 1
 
   node_dir="$(pi_node_dir)" || return 1
   node_version="$(pi_node_version)" || return 1
   npm_cli="${node_dir}/lib/node_modules/npm/bin/npm-cli.js"
   if [[ ! -x "${node_dir}/bin/node" || ! -f "$npm_cli" ]]; then
-    fail "Pi's Node installation is incomplete"
+    error "Pi's Node installation is incomplete"
     return 1
   fi
 
-  "$node_dir/bin/node" "$npm_cli" install -g --ignore-scripts --min-release-age=0 --no-fund --no-audit "$PI_NPM_PACKAGE" || return 1
-  asdf reshim nodejs "$node_version" || return 1
+  run_prefixed npm "$node_dir/bin/node" "$npm_cli" install -g --ignore-scripts --min-release-age=0 --no-fund --no-audit "$PI_NPM_PACKAGE" || return 1
+  run_prefixed asdf asdf reshim nodejs "$node_version" || return 1
 
   if ! check_pi_install; then
-    fail "Pi installation check failed"
+    error "Pi installation check failed"
     return 1
   fi
-  success "Pi $(pi_version) using Node $node_version"
+  success "Pi $(pi_version) uses Node $node_version"
 }
 
 check_pi_install() {
