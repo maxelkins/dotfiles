@@ -4,6 +4,7 @@
   "scripts": {
     "format": "prettier --write --ignore-path .gitignore --ignore-path .prettierignore .",
     "format:check": "prettier --check --ignore-path .gitignore --ignore-path .prettierignore .",
+    "test": "bash tests/dot_test.sh && python3 -B -m unittest discover -s tests -p '*_test.py'",
     "typecheck:pi": "tsc -p home/.pi/agent/tsconfig.json",
     "prepare": "git config core.hooksPath .githooks"
   },

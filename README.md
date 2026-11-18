@@ -49,6 +49,7 @@ dot                         Open the interactive menu
 dot setup [profile]         Set up this Mac
 dot upgrade                 Upgrade repository-managed tools and configuration
 dot check                   Run read-only health checks
+dot skills update           Update vendored skills and reconcile home links
 dot apply home              Reconcile managed home links
 dot apply macos             Apply macOS preferences
 dot apply dock              Configure Dock applications
@@ -120,6 +121,37 @@ dot apply home --archive-legacy-skills
 ```
 
 The option also works with `dot setup`.
+
+## Skill updates
+
+Run `dot skills update` to download the latest default-branch versions of skills
+listed in `packages/skills.json`, update their copies under `home/.agents/skills/`,
+and reapply managed links. Requires Git and Python 3.9+. Review `git diff` before
+committing, then run `/reload` in Pi. This is explicit, not part of `dot upgrade`.
+
+The updater skips skills with uncommitted files and reports failures without
+preventing other skills from updating. Commit newly installed skills before their
+first update. Skills without a source entry are reported and left alone (including
+local/custom skills). Upstream code is downloaded, never executed; review the new
+instructions before using them.
+
+Each manifest entry maps the installed directory name to `sourceUrl` and
+`skillPath` (the repository-relative path to its `SKILL.md`). Successful updates
+record the source commit in `revision`. Register new third-party skills here after
+installing them into `home/.agents/skills/`. Installer lockfiles are not modified;
+the source manifest stays outside `home/` so it is not linked into `$HOME`.
+
+`home/.agents/.skill-lock.json` belongs to the skill installer and records its install-time hashes and metadata. `dot skills update` does not refresh those hashes; `packages/skills.json` records the revisions fetched by this updater. The vendored files in Git remain the exact installed snapshot; the manifest is provenance, not a lockfile-driven restore command. No additional lockfile is needed.
+
+Vendored skills are excluded from Prettier to preserve upstream formatting. Run the repository's local checks with:
+
+```sh
+npm test
+npm run format:check
+npm run typecheck:pi
+```
+
+Upstream skill tests are not part of `npm test`: some depend on their original monorepo. In particular, Plannotator's Mermaid rendering test requires its `packages/ui` workspace and dependencies; run that integration test in an upstream checkout with those dependencies installed.
 
 ## Manual macOS changes
 

@@ -23,6 +23,8 @@ source "${DOT_ROOT}/scripts/lib/stow.sh"
 source "${DOT_ROOT}/scripts/lib/pi.sh"
 # shellcheck source=scripts/lib/doctor.sh
 source "${DOT_ROOT}/scripts/lib/doctor.sh"
+# shellcheck source=scripts/lib/skills.sh
+source "${DOT_ROOT}/scripts/lib/skills.sh"
 
 print_help() {
   cat <<'HELP'
@@ -32,6 +34,7 @@ Commands:
   setup [profile]         Set up this Mac using base, personal, or work packages
   upgrade                 Upgrade everything managed by this repository
   check                   Run read-only health checks
+  skills update           Update vendored skills and reconcile home links
   apply home [option]     Reconcile managed home links
   apply macos             Apply macOS preferences
   apply dock              Configure Dock applications
@@ -366,6 +369,7 @@ dispatch_command() {
     setup) cmd_setup "$@" ;;
     upgrade) cmd_upgrade "$@" ;;
     check) cmd_check "$@" ;;
+    skills) cmd_skills "$@" ;;
     apply) cmd_apply "$@" ;;
     help|-h|--help) print_help ;;
     *)
