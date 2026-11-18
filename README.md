@@ -97,6 +97,12 @@ Pi has its own asdf runtime under `~/.config/pi-runtime`. Its tracked `.tool-ver
 
 `dot setup` installs Pi, `dot upgrade` updates it, and `dot check` verifies it. Pi's `/update` command also checks for a newer Node release in the configured major version. It asks before updating the tracked `.tool-versions` file and requires a Pi restart when the runtime changes.
 
+### Local MCP connections
+
+Pi's `~/.pi/agent/mcp.json` is a local file, not a managed symlink: server URLs can contain credentials. `dot apply home` (also run by setup and upgrade) copies `templates/pi/mcp.example.json` there only if no local configuration exists. Existing files and symlinks are never overwritten. Edit the local file to configure and enable servers, then run `/reload` in Pi.
+
+Commit only the credential-free example. `home/.pi/agent/mcp.json` is ignored as a safeguard against accidentally putting the live configuration back into the managed tree.
+
 ## Existing files and backups
 
 Before applying managed links, `dot apply home` checks each managed path. It moves conflicts to:

@@ -252,6 +252,27 @@ else
 fi
 rm -rf "$fixture"
 
+fixture="$(mktemp -d)"
+FIXTURE="$fixture" bash -c '
+  set -euo pipefail
+  DOT_ROOT="$1"
+  HOME="$FIXTURE/home"
+  source "$1/scripts/lib/stow.sh"
+  initialize_local_pi_config
+  cmp "$DOT_ROOT/templates/pi/mcp.example.json" "$HOME/.pi/agent/mcp.json"
+  test ! -L "$HOME/.pi/agent/mcp.json"
+  printf "local credentials\n" > "$HOME/.pi/agent/mcp.json"
+  initialize_local_pi_config
+  test "$(<"$HOME/.pi/agent/mcp.json")" = "local credentials"
+  rm "$HOME/.pi/agent/mcp.json"
+  ln -s "$FIXTURE/missing" "$HOME/.pi/agent/mcp.json"
+  initialize_local_pi_config
+  test -L "$HOME/.pi/agent/mcp.json"
+  test ! -e "$FIXTURE/missing"
+' _ "$ROOT"
+pass 'local MCP config is seeded without replacing existing files or symlinks'
+rm -rf "$fixture"
+
 if (( failures > 0 )); then
   printf '%s test(s) failed\n' "$failures" >&2
   exit 1

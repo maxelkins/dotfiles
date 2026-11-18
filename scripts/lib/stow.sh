@@ -104,6 +104,19 @@ sync_claude_skills() {
   done
 }
 
+initialize_local_pi_config() {
+  local target="${HOME}/.pi/agent/mcp.json"
+  local example="${DOT_ROOT}/templates/pi/mcp.example.json"
+
+  # Never replace existing credentials, including a dangling symlink.
+  if [[ -e "$target" || -L "$target" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$target")"
+  (umask 077; cp "$example" "$target")
+}
+
 stow_home() {
   local archive_legacy_skills="${1:-0}"
 
@@ -128,6 +141,7 @@ stow_home() {
     return 1
   fi
   sync_claude_skills
+  initialize_local_pi_config
   success "Managed files point to $DOT_HOME_DIR"
   success "Shared agent skills are available to Claude Code"
 

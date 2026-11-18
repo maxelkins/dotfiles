@@ -11,11 +11,8 @@
       "enabled": false
     },
     "home-assistant": {
-      "url": "https://home.m-box.xyz/api/mcp",
-      "oauth": {
-        "clientRegistration": "cimd"
-      },
-      "description": "Control and query Home Assistant devices, entities, and automations",
+      "url": "https://YOUR_HOME_ASSISTANT_HOST/api/webhook/YOUR_SECRET_WEBHOOK_ID",
+      "description": "Manage Home Assistant devices, entities, automations, and configuration using HA-MCP",
       "enabled": false
     },
     "gitlab": {
