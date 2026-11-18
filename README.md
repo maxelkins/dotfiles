@@ -153,6 +153,10 @@ npm run typecheck:pi
 
 Upstream skill tests are not part of `npm test`: some depend on their original monorepo. In particular, Plannotator's Mermaid rendering test requires its `packages/ui` workspace and dependencies; run that integration test in an upstream checkout with those dependencies installed.
 
+## Local shell configuration
+
+`~/.zshrc` optionally sources `~/.zshrc.local` when readable. Keep machine-specific or work-only configuration there, outside this repository. For example, put a guarded `source` of your work environment script in that local file rather than adding its path to the shared shell configuration. Setup never creates or overwrites it.
+
 ## Manual macOS changes
 
 Setup and upgrade do not change macOS preferences or the Dock. Apply them explicitly when wanted:
