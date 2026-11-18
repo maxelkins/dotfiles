@@ -34,14 +34,11 @@ zoomed diagram painted over its own caption.
       <button data-z="out" aria-label="Zoom out">−</button>
       <button data-z="in" aria-label="Zoom in">+</button>
       <button data-z="reset" aria-label="Reset zoom">Reset</button>
-      <button data-z="expand" aria-label="Toggle expanded height">
-        Expand
-      </button>
+      <button data-z="expand" aria-label="Toggle expanded height">Expand</button>
     </div>
     <div class="mermaid-viewport">
       <div class="mermaid-canvas">
-        <pre class="diagram-source">
-flowchart TD
+        <pre class="diagram-source">flowchart TD
   A --> B</pre>
       </div>
     </div>

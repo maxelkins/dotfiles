@@ -33,13 +33,11 @@ palettes until every SVG passes.
 For zoomable diagram shells, additionally zoom to the maximum and pan to all extremes in both palettes before delivering: the figure caption must stay fully legible throughout (see `references/diagram-shell.md`).
 
 **Plans/proposals** (user should approve/deny):
-
 ```bash
 plannotator annotate <file> --gate
 ```
 
 **Everything else** (informational):
-
 ```bash
 plannotator annotate <file>
 ```
@@ -51,7 +49,6 @@ plannotator annotate <file>
 For implementation plans, design docs, feature specs, migration guides, and proposals.
 
 **Before generating, read:**
-
 1. `references/design-system.md` — Plannotator theme tokens, typography, component patterns
 2. `references/svg-patterns.md` — inline SVG building blocks for architecture diagrams, flowcharts, data flow
 
@@ -79,7 +76,6 @@ Not every plan needs every section. Skip what doesn't serve the content. Never i
 For PR walkthroughs, diff reviews, code change explainers, and reviewer guides.
 
 **Before generating, read:**
-
 1. `references/design-system.md` — Plannotator theme tokens, typography, component patterns
 2. `references/pr-components.md` — diff rendering, review comment bubbles, risk chips, file cards, before/after panels
 

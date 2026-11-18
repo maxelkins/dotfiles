@@ -1,5 +1,6 @@
 ---
 name: plannotator-compound
+disable-model-invocation: true
 description: >
   Analyze a user's Plannotator plan archive to extract denial patterns, feedback
   taxonomy, evolution over time, and actionable prompt improvements — then produce
@@ -20,10 +21,29 @@ Research integrity is paramount — every file must be read, no skipping.
 
 Before starting the analysis, determine which data source is available.
 
-1. **Plannotator mode (first-class)** — Determine the Plannotator data directory:
-   use `$PLANNOTATOR_DATA_DIR` if set, otherwise `~/.plannotator`. Check the
-   `plans/` subdirectory there. If it exists and contains `*-denied.md` files,
-   use this mode. The entire workflow below is written for Plannotator data.
+1. **Plannotator mode (first-class)** — Find the Plannotator data directory,
+   called `<data-dir>` from here on. Run:
+
+   ```
+   plannotator data-dir
+   ```
+
+   It prints the folder's absolute path and creates nothing; use what it
+   prints. If it prints nothing or fails (an older Plannotator), use `$PLANNOTATOR_DATA_DIR` if
+   set, else whichever of `$XDG_DATA_HOME/plannotator` and the home folder's
+   `.plannotator` holds `history/` or `sessions/` (the home one if both do),
+   and ask the user if neither does.
+
+   Never write into any other folder than `<data-dir>`. In particular, do not
+   create a `.plannotator` folder in the home folder unless `<data-dir>` is
+   that folder: on an install that keeps its data under `$XDG_DATA_HOME`, a
+   new one can make Plannotator lose sight of the person's plans and history.
+   Leave any other Plannotator folder you find alone, and do not suggest
+   deleting it: it may hold older data.
+
+   Check the `plans/` subdirectory of `<data-dir>`. If it exists and contains
+   `*-denied.md` files, use this mode. The entire workflow below is written for
+   Plannotator data.
 
 2. **Claude Code fallback mode** — If the Plannotator archive is absent or
    contains no denied plans, check `~/.claude/projects/`. If present, read
@@ -54,11 +74,12 @@ In either mode, proceed to Previous Report Detection below.
 After locating the plans directory, check for existing reports:
 
 ```
-ls ${PLANNOTATOR_DATA_DIR:-~/.plannotator}/plans/compound-planning-report*.html
+ls <data-dir>/plans/compound-planning-report*.html
 ```
 
-Reports follow a versioned naming scheme:
+(`<data-dir>` is the folder from Source Selection; put its real path in the command.)
 
+Reports follow a versioned naming scheme:
 - First report: `compound-planning-report.html`
 - Subsequent reports: `compound-planning-report-v2.html`, `compound-planning-report-v3.html`, etc.
 
@@ -121,7 +142,6 @@ New since {CUTOFF_DATE}:
 ```
 
 If fewer than 3 new denied files exist since the cutoff, warn the user:
-
 > "Only {N} new denied plans since the last report. The incremental analysis may
 > be thin. Would you like to proceed or switch to a full analysis?"
 
@@ -315,40 +335,33 @@ The reduction agent's job is to let the data speak. Do not impose a predetermine
 framework — discover what's actually there. The analysis must produce:
 
 ### 1. Denial Reason Taxonomy
-
 Categorize every denial into a finite set of types that emerge from the data. Count
 occurrences. Show percentages. Include real example quotes for each type. Aim for
 8-15 categories — enough to be specific, few enough to be scannable. Let the user's
 actual feedback determine what the categories are.
 
 ### 2. Top Feedback Patterns (ranked by frequency)
-
 The 5-10 most recurring patterns. For each: what the reviewer consistently asks for,
 3+ example quotes from different files, and whether the pattern changed over time.
 
 ### 3. Recurring Phrases
-
 Exact phrases the reviewer uses repeatedly, with counts and what they signal. These
 are the reviewer's vocabulary — their shorthand for what they care about.
 
 ### 4. What the Reviewer Values (implicit preferences)
-
 Derived from patterns — what does this specific person care about most? Quality?
 Speed? Narrative? Architecture? Process? Simplicity? Rank by evidence strength.
 This section should feel like a personality profile of the reviewer's standards.
 
 ### 5. What Agents Consistently Get Wrong
-
 The flip side — what recurring mistakes trigger denials? What should agents stop
 doing for this reviewer?
 
 ### 6. Structural Requests
-
 What plan structure does the reviewer consistently demand? Required sections,
 ordering, format preferences, level of detail expected.
 
 ### 7. Evolution Over Time
-
 How feedback patterns changed across the time span. Group by whatever natural time
 boundaries exist in the data (weeks for short spans, months for longer ones). Did
 expectations mature? Did new patterns emerge? What shifted? If the dataset spans
@@ -356,7 +369,6 @@ less than a month, note that evolution analysis is limited but still look for an
 progression from early to late files.
 
 ### 8. Actionable Prompt Instructions
-
 The most important output. Based on all patterns: specific numbered instructions
 that could be embedded in a planning prompt to prevent the most common denial
 reasons. Write these as actual directives an agent could follow. Be specific to
@@ -370,7 +382,7 @@ vs total denials). Report this percentage — it will be different for every use
 ## Phase 4: Generate the HTML Dashboard
 
 Build a single, self-contained HTML file as the final deliverable. Save it to
-the user's plans directory with a versioned filename:
+`<data-dir>/plans/` (the folder from Source Selection) with a versioned filename:
 
 - First ever report: `compound-planning-report.html`
 - Second report: `compound-planning-report-v2.html`
@@ -500,7 +512,6 @@ After generating, open the file in the user's browser.
 ## Phase 5: Summary
 
 Tell the user:
-
 - How many denied files were analyzed
 - If incremental: how many were new since the last report
 - The top 3 denial patterns found
@@ -529,10 +540,13 @@ every future planning session automatically.
 The hook file lives at:
 
 ```
-${PLANNOTATOR_DATA_DIR:-~/.plannotator}/hooks/compound/enterplanmode-improve-hook.txt
+<data-dir>/hooks/compound/enterplanmode-improve-hook.txt
 ```
 
-Create the `hooks/compound/` directory inside the data directory if it doesn't exist.
+`<data-dir>` is the folder from Source Selection (`plannotator data-dir`
+prints it). If you have not found it yet, find it now the same way; never
+guess it. Create the `hooks/compound/` directory inside `<data-dir>` if it
+doesn't exist.
 
 The file contents should be the corrective prompt instructions from Phase 3 —
 the same numbered list that appears in section 7 of the HTML report. Write them

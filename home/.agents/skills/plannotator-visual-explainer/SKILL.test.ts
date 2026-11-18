@@ -47,9 +47,7 @@ function captureMermaidConfig(colorScheme: "light" | "dark") {
   );
 
   if (!captured?.themeVariables) {
-    throw new Error(
-      `Mermaid example did not initialize the ${colorScheme} palette`,
-    );
+    throw new Error(`Mermaid example did not initialize the ${colorScheme} palette`);
   }
 
   return { name: colorScheme, config: captured };
@@ -83,10 +81,7 @@ describe("plannotator-visual-explainer Mermaid theming", () => {
   });
 
   test("renders representative Mermaid 12 diagrams in both palettes", async () => {
-    const palettes = [
-      captureMermaidConfig("light"),
-      captureMermaidConfig("dark"),
-    ];
+    const palettes = [captureMermaidConfig("light"), captureMermaidConfig("dark")];
     const uiPackageDir = join(import.meta.dir, "../../../../packages/ui");
     const renderProbe = String.raw`
       import { GlobalRegistrator } from "@happy-dom/global-registrator";
@@ -214,11 +209,7 @@ describe("plannotator-visual-explainer diagram shell", () => {
   });
 
   test("shell reference keeps its sections", () => {
-    for (const heading of [
-      "## Clipping contract",
-      "## Skeleton",
-      "## Self-check",
-    ]) {
+    for (const heading of ["## Clipping contract", "## Skeleton", "## Self-check"]) {
       expect(diagramShell).toContain(heading);
     }
   });
@@ -227,8 +218,7 @@ describe("plannotator-visual-explainer diagram shell", () => {
     // Deliberate contract pin (#1546): an absolutely-positioned canvas escapes
     // a static viewport's overflow, painting the zoomed diagram over the
     // caption. The reference viewport rule must keep both declarations.
-    const rule =
-      diagramShell.match(/\.mermaid-viewport\s*\{([^}]*)\}/)?.[1] ?? "";
+    const rule = diagramShell.match(/\.mermaid-viewport\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(rule).toMatch(/position:\s*relative/);
     expect(rule).toMatch(/overflow:\s*hidden/);
   });
@@ -237,8 +227,7 @@ describe("plannotator-visual-explainer diagram shell", () => {
     // Failure caught: the canvas losing absolute positioning, which would put
     // the zoomed SVG back in flow and push the caption down the page instead
     // of panning inside the viewport.
-    const rule =
-      diagramShell.match(/\.mermaid-canvas\s*\{([^}]*)\}/)?.[1] ?? "";
+    const rule = diagramShell.match(/\.mermaid-canvas\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(rule).toMatch(/position:\s*absolute/);
   });
 });
