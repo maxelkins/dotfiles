@@ -23,6 +23,8 @@ source "${DOT_ROOT}/scripts/lib/platform.sh"
 source "${DOT_ROOT}/scripts/lib/stow.sh"
 # shellcheck source=scripts/lib/pi.sh
 source "${DOT_ROOT}/scripts/lib/pi.sh"
+# shellcheck source=scripts/lib/steps.sh
+source "${DOT_ROOT}/scripts/lib/steps.sh"
 # shellcheck source=scripts/lib/doctor.sh
 source "${DOT_ROOT}/scripts/lib/doctor.sh"
 # shellcheck source=scripts/lib/skills.sh
@@ -98,20 +100,8 @@ cmd_setup() {
     warn "Package profiles do not apply on $(platform_label); ignoring '$requested_profile'"
   fi
 
-  # platform_prepare reports what it skips when it fails.
-  if platform_prepare; then
-    platform_install_packages || ((failures += 1))
-  else
-    ((failures += 1))
-  fi
-
-  platform_install_runtime_manager || ((failures += 1))
-  install_pi || ((failures += 1))
-  platform_install_shell || ((failures += 1))
-
-  stow_home "$archive_legacy_skills" || ((failures += 1))
-  link_dot_command || ((failures += 1))
-  configure_git_hooks || ((failures += 1))
+  # Steps live in scripts/lib/steps.sh; dot check verifies the same rows.
+  DOT_ARCHIVE_LEGACY_SKILLS="$archive_legacy_skills" run_steps install || failures="$DOT_STEP_FAILURES"
 
   if (( failures > 0 )); then
     print_summary "Setup completed with $failures failed stage(s)"
@@ -158,11 +148,7 @@ cmd_upgrade() {
     fi
   fi
 
-  platform_update_packages || ((failures += 1))
-  platform_install_runtime_manager || ((failures += 1))
-  install_pi || ((failures += 1))
-  stow_home || ((failures += 1))
-  configure_git_hooks || ((failures += 1))
+  run_steps upgrade || ((failures += DOT_STEP_FAILURES))
 
   info "Verifying the upgraded setup"
   if ! run_doctor embedded; then
@@ -197,7 +183,7 @@ cmd_check() {
     print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
     return 1
   fi
-  info "Checking tools, packages, managed links, Pi, and shell dependencies"
+  info "Checking every step that dot setup installs"
   run_doctor
 }
 

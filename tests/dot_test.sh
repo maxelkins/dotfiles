@@ -326,15 +326,11 @@ exclude_output="$(FIXTURE="$fixture" bash -c '
   source "$1/scripts/lib/common.sh"
   source "$1/scripts/lib/profile.sh"
   source "$1/scripts/lib/stow.sh"
+  source "$1/scripts/lib/steps.sh"
   source "$1/scripts/lib/doctor.sh"
   platform_home_excludes() { printf "Library\n"; }
-  platform_required_tools() { printf "git\n"; }
-  platform_supports_profiles() { return 0; }
-  platform_packages_checkable() { return 1; }
-  platform_check_shell() { success "shell ok"; }
-  check_pi_install() { return 0; }
-  pi_version() { printf "test\n"; }
-  pi_node_version() { printf "test\n"; }
+  platform_skips_step() { return 1; }
+  DOT_STEPS=("home links | check_managed_links | install_home_links | - | - | yes | Repair managed links: dot apply home")
 
   test "$(managed_home_files)" = "$DOT_HOME_DIR/.config/Library/config"
   prepare_managed_directories
@@ -358,6 +354,121 @@ else
   fail_test 'stow and doctor skip only top-level platform_home_excludes'
 fi
 rm -rf "$fixture"
+
+for backend in macos linux; do
+  set +e
+  backend_output="$(DOT_PLATFORM="$backend" bash -c '
+    source "$1/dot"
+    (( DOT_PLATFORM_BACKEND_LOADED == 1 )) || { echo "backend not loaded"; exit 1; }
+    seen="|"
+    for row in "${DOT_STEPS[@]}"; do
+      step_parse "$row"
+      for fn in "$STEP_CHECK" "$STEP_INSTALL" "$STEP_UPGRADE"; do
+        [[ "$fn" == skip ]] || declare -F "$fn" >/dev/null || echo "$STEP_NAME: $fn is not defined"
+      done
+      [[ "$STEP_REQUIRED" == yes || "$STEP_REQUIRED" == no ]] || echo "$STEP_NAME: required must be yes or no"
+      [[ -n "$STEP_ACTION" ]] || echo "$STEP_NAME: action is empty"
+      [[ "$STEP_NEEDS" == - || "$seen" == *"|$STEP_NEEDS|"* ]] || echo "$STEP_NAME: needs unknown or later step $STEP_NEEDS"
+      seen+="$STEP_NAME|"
+    done
+  ' _ "$ROOT" 2>&1)"
+  set -e
+  if [[ -z "$backend_output" ]]; then
+    pass "every step row has defined check and install functions on $backend"
+  else
+    printf '%s\n' "$backend_output" >&2
+    fail_test "every step row has defined check and install functions on $backend"
+  fi
+done
+
+# Replace every function named in the step table with a recorder, then run
+# setup, upgrade, and doctor in a scratch HOME.
+step_home="$(mktemp -d)"
+set +e
+step_output="$(HOME="$step_home" DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  for row in "${DOT_STEPS[@]}"; do
+    step_parse "$row"
+    for fn in "$STEP_CHECK" "$STEP_INSTALL" "$STEP_UPGRADE"; do
+      [[ "$fn" == skip ]] && continue
+      eval "$fn() { printf \"CALL %s\\n\" \"\$FUNCNAME\" >>\"\$HOME/calls\"; }"
+    done
+  done
+  cmd_setup base >/dev/null 2>&1 || exit 1
+  mv "$HOME/calls" "$HOME/setup.calls"
+  run_doctor >/dev/null 2>&1 || exit 1
+  mv "$HOME/calls" "$HOME/check.calls"
+  for row in "${DOT_STEPS[@]}"; do
+    step_parse "$row"
+    printf "%s\t%s\t%s\n" "$STEP_NAME" "$STEP_INSTALL" "$STEP_CHECK"
+  done
+' _ "$ROOT" 2>&1)"
+step_status=$?
+set -e
+if (( step_status == 0 )); then
+  expected_setup="" expected_check=""
+  while IFS=$'\t' read -r step_name step_install step_check; do
+    expected_setup+="CALL ${step_install}"$'\n'
+    expected_check+="CALL ${step_check}"$'\n'
+  done <<<"$step_output"
+  if [[ "$(<"$step_home/setup.calls")"$'\n' == "$expected_setup" && "$(<"$step_home/check.calls")"$'\n' == "$expected_check" ]]; then
+    pass 'setup and doctor iterate the same step rows in order'
+  else
+    printf 'setup:\n%s\ncheck:\n%s\n' "$(<"$step_home/setup.calls")" "$(<"$step_home/check.calls")" >&2
+    fail_test 'setup and doctor iterate the same step rows in order'
+  fi
+else
+  printf '%s\n' "$step_output" >&2
+  fail_test 'setup and doctor iterate the same step rows in order'
+fi
+rm -rf "$step_home"
+
+set +e
+doctor_output="$(DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  ok() { success "fine"; }
+  bad() { warn "broken"; return 1; }
+  DOT_STEPS=(
+    "one   | bad | ok | - | - | yes | Fix it: dot setup"
+    "two   | ok  | ok | - | - | yes | Other: dot upgrade"
+    "three | bad | ok | - | - | yes | Fix it: dot setup"
+    "four  | bad | ok | - | - | no  | Optional: dot setup"
+  )
+  run_doctor
+' _ "$ROOT" 2>&1)"
+doctor_status=$?
+set -e
+fix_count="$(grep -c 'Fix it: dot setup' <<<"$doctor_output" || true)"
+if (( doctor_status != 0 )) && [[ "$fix_count" == 1 && "$doctor_output" == *'2 health check(s) failed'* && "$doctor_output" == *'Optional: dot setup'* && "$doctor_output" != *'Other: dot upgrade'* ]]; then
+  pass 'doctor counts required failures and lists each failed action once'
+else
+  printf '%s\n' "$doctor_output" >&2
+  fail_test 'doctor counts required failures and lists each failed action once'
+fi
+
+set +e
+gate_output="$(DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  ok() { printf "RAN %s\n" "$FUNCNAME"; }
+  prep() { printf "RAN prep\n"; return 1; }
+  pkgs() { printf "RAN pkgs\n"; }
+  later() { printf "RAN later\n"; }
+  DOT_STEPS=(
+    "prerequisites | ok | prep  | skip | -             | yes | a"
+    "packages      | ok | pkgs  | -    | prerequisites | yes | b"
+    "later         | ok | later | -    | -             | yes | c"
+  )
+  run_steps install || true
+  printf "FAILURES %s\n" "$DOT_STEP_FAILURES"
+  run_steps upgrade
+' _ "$ROOT" 2>&1)"
+set -e
+if [[ "$gate_output" == $'RAN prep\nRAN later\nFAILURES 1\nRAN pkgs\nRAN later' ]]; then
+  pass 'a failed step skips dependants, later steps continue, and upgrade honours skip'
+else
+  printf '%s\n' "$gate_output" >&2
+  fail_test 'a failed step skips dependants, later steps continue, and upgrade honours skip'
+fi
 
 if (( failures > 0 )); then
   printf '%s test(s) failed\n' "$failures" >&2

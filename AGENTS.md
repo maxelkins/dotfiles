@@ -13,6 +13,7 @@ This repository manages a home directory with GNU Stow on macOS and on Debian/Ub
 - Record any intentional third-party Homebrew trust at formula scope in `packages/trusted-formulae`.
 - Treat `~/.config/mac-setup/profile` as local machine state. Package commands read it to select one optional bundle.
 - Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
+- Add setup work as a row in `scripts/lib/steps.sh` with both a check and an installer; `dot check` reads the same rows.
 - Put platform-specific behavior in `scripts/lib/platform/<os>.sh` behind the interface documented in `scripts/lib/platform.sh`. Commands call `platform_*` functions instead of checking the OS.
 - Use `dot apply home` for managed links. Its preflight backs up conflicts before GNU Stow runs.
 - Keep `dot apply macos` and `dot apply dock` opt-in. They change host state.

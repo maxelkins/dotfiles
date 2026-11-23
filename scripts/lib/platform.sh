@@ -29,13 +29,14 @@
 #                                    non-zero on failure.
 #   platform_check_shell             Read-only shell framework check, run by
 #                                    doctor in the current shell after it prints
-#                                    "Checking the shell framework". Print one
+#                                    "Checking shell". Print one
 #                                    success line (via success) when healthy and
 #                                    return 0. When unhealthy, print a warning
 #                                    (via warn) naming what is missing and return
 #                                    1; doctor then counts one failure and adds
-#                                    the action "Install shell dependencies: dot
-#                                    setup". Do not print the action yourself.
+#                                    the shell row's action from
+#                                    scripts/lib/steps.sh. Do not print the
+#                                    action yourself.
 #
 # A backend may override these defaults:
 #
@@ -48,6 +49,10 @@
 #                                    skip the package check silently, e.g. when
 #                                    the package manager is missing and the tool
 #                                    check already reports it. Default: 0.
+#   platform_skips_step <name>       Return 0 when a row of scripts/lib/steps.sh
+#                                    does not apply on this platform; setup,
+#                                    upgrade, and doctor then ignore it.
+#                                    Default: 1 (every step applies).
 
 DOT_PLATFORM_BACKEND_LOADED=0
 
@@ -70,6 +75,10 @@ platform_home_excludes() {
 
 platform_packages_checkable() {
   return 0
+}
+
+platform_skips_step() {
+  return 1
 }
 
 require_supported_platform() {
