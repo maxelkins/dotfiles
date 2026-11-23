@@ -11,7 +11,7 @@ This repository manages a home directory with GNU Stow on macOS and on Debian/Ub
 - Put shared Pi settings in `templates/pi/settings.json`. Pi owns `~/.pi/agent/settings.json`; `dot apply home` merges the shared keys into it. Leave per-machine choices such as `defaultModel` out of the shared file.
 - Keep `home/.pi/agent/extensions/herdr-agent-state.ts` tracked but generated. Update it through Herdr's integration installer rather than editing it by hand.
 - Put shared Homebrew declarations in `packages/bundle`, personal declarations in `packages/bundle.personal`, and work declarations in `packages/bundle.work`.
-- Put Linux apt declarations in `packages/bundle.linux`. Put Linux release binaries, including asdf and any tool whose apt version is too old, in `packages/extras.linux` as one block per tool with an exact version and SHA-256 hashes; add a block rather than a new installer. Never pin asdf in the repo-root `.tool-versions`.
+- Put Linux apt declarations in `packages/bundle.linux`. Add a vendor apt repository as a block in `packages/apt-sources.linux` with its pinned key fingerprint. Put Linux release binaries, including asdf and any tool whose apt version is too old, in `packages/extras.linux` as one block per tool with an exact version and SHA-256 hashes; add a block rather than a new installer. Never pin asdf in the repo-root `.tool-versions`.
 - Record any intentional third-party Homebrew trust at formula scope in `packages/trusted-formulae`.
 - Treat `~/.config/mac-setup/profile` as local machine state. Package commands read it to select one optional bundle.
 - Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
