@@ -64,7 +64,8 @@ dot help                    Show help
 .
 ├── dot                  # Menu, command dispatch, and orchestration
 ├── home/                # Files linked into $HOME
-│   ├── .agents/         # Shared agent skills
+│   ├── .agents/         # Shared agent skills and global agent rules
+│   ├── .claude/         # Claude Code adapter for the shared rules
 │   ├── .config/         # Application configuration
 │   ├── .pi/             # Pi configuration
 │   └── Library/         # macOS application support files
@@ -121,6 +122,14 @@ dot apply home --archive-legacy-skills
 ```
 
 The option also works with `dot setup`.
+
+Global agent rules live in `home/.agents/AGENTS.md`. Each harness reads that one file through a thin adapter:
+
+- Pi: `home/.pi/agent/AGENTS.md` is a symlink to it.
+- OpenCode: `home/.config/opencode/opencode.jsonc` lists it under `instructions`.
+- Claude Code: `home/.claude/CLAUDE.md` imports it with `@~/.agents/AGENTS.md`.
+
+Keep harness-specific guidance in the harness's own config and repository-specific rules in that repository's `AGENTS.md`.
 
 ## Skill updates
 
