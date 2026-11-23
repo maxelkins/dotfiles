@@ -50,7 +50,7 @@ choose_profile_for_setup() {
     default_profile="$(current_profile)"
   fi
 
-  if [[ ! -t 0 ]]; then
+  if ! dot_interactive; then
     printf '%s\n' "$default_profile"
     return 0
   fi

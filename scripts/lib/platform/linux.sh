@@ -38,16 +38,46 @@ linux_is_root() {
   [[ "$(id -u)" == 0 ]]
 }
 
+# Without a user to answer, sudo must fail rather than ask for a password.
 linux_as_root() {
   if linux_is_root; then
     "$@"
-  else
+  elif dot_interactive; then
     sudo "$@"
+  else
+    sudo -n "$@"
   fi
 }
 
 linux_apt_get() {
-  linux_as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get "$@"
+  local dpkg_options=()
+  # Headless: keep locally modified config files instead of asking.
+  if dot_headless; then
+    dpkg_options=(-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+  fi
+  linux_as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get ${dpkg_options[@]+"${dpkg_options[@]}"} "$@"
+}
+
+# Check sudo up front. Interactive runs may ask for the password once;
+# otherwise fail fast instead of hanging on a prompt nobody can answer.
+linux_check_sudo() {
+  if dot_interactive; then
+    if ! sudo -v; then
+      error "sudo could not authenticate; dot needs sudo to run apt-get"
+      return 1
+    fi
+    return 0
+  fi
+  if sudo -n true 2>/dev/null; then
+    return 0
+  fi
+  if dot_headless; then
+    error "sudo needs a password; configure passwordless sudo for unattended runs or run without --headless"
+  else
+    error "sudo needs a password; configure passwordless sudo for unattended runs or run dot from a terminal"
+  fi
+  return 1
 }
 
 platform_prepare() {
@@ -64,8 +94,8 @@ platform_prepare() {
     error "sudo is required to install packages; install it as root: apt-get install -y sudo"
     return 1
   fi
-  if ! sudo -v; then
-    error "sudo could not authenticate; dot needs sudo to run apt-get"
+  if ! linux_check_sudo; then
+    skipped "apt package installation requires sudo"
     return 1
   fi
   success "apt-get and sudo are available"

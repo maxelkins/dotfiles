@@ -32,7 +32,7 @@ source "${DOT_ROOT}/scripts/lib/skills.sh"
 
 print_help() {
   cat <<'HELP'
-Usage: dot [command]
+Usage: dot [--headless] [command]
 
 Commands:
   setup [profile]         Set up this machine using base, personal, or work packages
@@ -44,10 +44,15 @@ Commands:
   apply dock              Configure Dock applications
   help                    Show this help
 
+Global options (before the command):
+  --headless              Never prompt: take defaults or fail fast instead.
+                          Same as DOT_HEADLESS=1. For scripts and SSH sessions.
+
 Options:
   --archive-legacy-skills Archive old Pi skill copies before applying home links
 
-Run dot without a command to open the interactive menu.
+Run dot without a command to open the interactive menu; without a terminal, or
+in headless mode, it prints this help instead.
 HELP
 }
 
@@ -377,8 +382,31 @@ dispatch_command() {
 }
 
 main() {
+  while (( $# > 0 )); do
+    case "$1" in
+      --headless)
+        DOT_HEADLESS=1
+        shift
+        ;;
+      -h|--help) break ;;
+      -*)
+        error "Unknown global option: $1"
+        print_summary "No operation was run"
+        print_action_required "Run: dot help"
+        return 1
+        ;;
+      *) break ;;
+    esac
+  done
+
+  if ! dot_configure_headless; then
+    print_summary "No operation was run"
+    print_action_required "Set DOT_HEADLESS=1 for headless mode, or unset it"
+    return 1
+  fi
+
   if (( $# == 0 )); then
-    if [[ -t 0 ]]; then
+    if dot_interactive; then
       interactive_menu
     else
       print_help

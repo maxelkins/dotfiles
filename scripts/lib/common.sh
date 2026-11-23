@@ -91,6 +91,48 @@ read_menu_choice() {
   fi
 }
 
+# Headless mode (dot --headless or DOT_HEADLESS=1) is for unattended runs such
+# as provisioning scripts and SSH sessions: nothing may wait for an answer,
+# even when `ssh -t` provides a terminal.
+dot_headless() {
+  [[ "${DOT_HEADLESS:-}" == 1 ]]
+}
+
+# Normalise DOT_HEADLESS and, when it is on, export the variables that stop
+# the tools dot runs from prompting. Fails on an unrecognised value.
+dot_configure_headless() {
+  case "${DOT_HEADLESS:-}" in
+    '' | 0 | false | no)
+      DOT_HEADLESS=0
+      return 0
+      ;;
+    1 | true | yes) ;;
+    *)
+      fail "DOT_HEADLESS must be 1 or 0, not '${DOT_HEADLESS}'"
+      return 1
+      ;;
+  esac
+
+  # apt/debconf and needrestart (Ubuntu), the Homebrew installer, and Git
+  # credential prompts for HTTPS remotes.
+  export DOT_HEADLESS=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    NEEDRESTART_MODE=a \
+    NONINTERACTIVE=1 \
+    GIT_TERMINAL_PROMPT=0
+  # SSH remotes: fail instead of asking for a passphrase or host key approval.
+  # Respect an SSH command the caller already chose.
+  if [[ -z "${GIT_SSH_COMMAND:-}" && -z "${GIT_SSH:-}" ]]; then
+    export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
+  fi
+}
+
+# True only when dot may ask a question: not headless and stdin is a terminal.
+# Every prompt must check this first and fall back to a default or fail.
+dot_interactive() {
+  ! dot_headless && [[ -t 0 ]]
+}
+
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }

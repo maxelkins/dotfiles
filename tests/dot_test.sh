@@ -26,7 +26,7 @@ assert_contains() {
 }
 
 non_tty_output="$(printf '' | "$ROOT/dot")"
-assert_contains "$non_tty_output" 'Usage: dot [command]' 'no-argument non-TTY invocation prints help'
+assert_contains "$non_tty_output" 'Usage: dot [--headless] [command]' 'no-argument non-TTY invocation prints help'
 
 if command -v python3 >/dev/null 2>&1; then
   if python3 - "$ROOT" <<'PY'
@@ -468,6 +468,166 @@ if [[ "$gate_output" == $'RAN prep\nRAN later\nFAILURES 1\nRAN pkgs\nRAN later' 
 else
   printf '%s\n' "$gate_output" >&2
   fail_test 'a failed step skips dependants, later steps continue, and upgrade honours skip'
+fi
+
+# Headless mode.
+# shellcheck disable=SC2016 # expanded by the child bash
+headless_env_script='
+  source "$1/dot"
+  dispatch_command() {
+    printf "%s\n" "DOT_HEADLESS=${DOT_HEADLESS-}" "DEBIAN_FRONTEND=${DEBIAN_FRONTEND-}" \
+      "NEEDRESTART_MODE=${NEEDRESTART_MODE-}" "NONINTERACTIVE=${NONINTERACTIVE-}" \
+      "GIT_TERMINAL_PROMPT=${GIT_TERMINAL_PROMPT-}" "GIT_SSH_COMMAND=${GIT_SSH_COMMAND-}" "ARGS=$*"
+    bash -c "printf \"child:%s\n\" \"\$DOT_HEADLESS:\$DEBIAN_FRONTEND:\$NONINTERACTIVE:\$GIT_TERMINAL_PROMPT\""
+  }
+  main "${@:2}"
+'
+headless_expected='DOT_HEADLESS=1
+DEBIAN_FRONTEND=noninteractive
+NEEDRESTART_MODE=a
+NONINTERACTIVE=1
+GIT_TERMINAL_PROMPT=0
+GIT_SSH_COMMAND=ssh -o BatchMode=yes
+ARGS=check
+child:1:noninteractive:1:0'
+clean_env=(env -u DOT_HEADLESS -u DEBIAN_FRONTEND -u NEEDRESTART_MODE -u NONINTERACTIVE -u GIT_TERMINAL_PROMPT -u GIT_SSH_COMMAND -u GIT_SSH)
+for variant in flag env; do
+  if [[ "$variant" == flag ]]; then
+    headless_output="$("${clean_env[@]}" bash -c "$headless_env_script" _ "$ROOT" --headless check </dev/null 2>&1)"
+  else
+    headless_output="$("${clean_env[@]}" DOT_HEADLESS=1 bash -c "$headless_env_script" _ "$ROOT" check </dev/null 2>&1)"
+  fi
+  if [[ "$headless_output" == "$headless_expected" ]]; then
+    pass "headless $variant exports the no-prompt variables to child processes"
+  else
+    printf 'Expected:\n%s\nGot:\n%s\n' "$headless_expected" "$headless_output" >&2
+    fail_test "headless $variant exports the no-prompt variables to child processes"
+  fi
+done
+headless_output="$("${clean_env[@]}" GIT_SSH_COMMAND='ssh -i key' bash -c "$headless_env_script" _ "$ROOT" --headless check </dev/null 2>&1)"
+assert_contains "$headless_output" 'GIT_SSH_COMMAND=ssh -i key' 'headless keeps a caller-provided GIT_SSH_COMMAND'
+headless_output="$("${clean_env[@]}" bash -c "$headless_env_script" _ "$ROOT" check </dev/null 2>&1)"
+if [[ "$headless_output" == *'DOT_HEADLESS=0'* && "$headless_output" == *$'DEBIAN_FRONTEND=\n'* && "$headless_output" == *$'GIT_TERMINAL_PROMPT=\n'* ]]; then
+  pass 'without headless, the no-prompt variables are left alone'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'without headless, the no-prompt variables are left alone'
+fi
+
+set +e
+headless_output="$(DOT_HEADLESS=maybe "$ROOT/dot" help 2>&1)"
+headless_status=$?
+set -e
+if (( headless_status != 0 )) && [[ "$headless_output" == *'DOT_HEADLESS must be 1 or 0'* ]]; then
+  pass 'an unrecognised DOT_HEADLESS value is rejected'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'an unrecognised DOT_HEADLESS value is rejected'
+fi
+
+set +e
+headless_output="$("$ROOT/dot" --bogus setup 2>&1)"
+headless_status=$?
+set -e
+if (( headless_status != 0 )) && [[ "$headless_output" == *'Unknown global option: --bogus'* ]]; then
+  pass 'an unknown global option is rejected'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'an unknown global option is rejected'
+fi
+
+headless_output="$("$ROOT/dot" --headless </dev/null 2>&1)"
+assert_contains "$headless_output" 'Usage: dot [--headless] [command]' 'dot --headless without a command prints help'
+assert_contains "$("$ROOT/dot" --headless --help 2>&1)" 'DOT_HEADLESS=1' 'help documents headless mode'
+
+profile_home="$(mktemp -d)"
+mkdir -p "$profile_home/.config/mac-setup"
+printf 'work\n' >"$profile_home/.config/mac-setup/profile"
+headless_output="$(HOME="$profile_home" bash -c 'source "$1/dot"; DOT_HEADLESS=1; choose_profile_for_setup' _ "$ROOT" </dev/null 2>&1)"
+if [[ "$headless_output" == work ]]; then
+  pass 'headless profile chooser takes the saved default without a prompt'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'headless profile chooser takes the saved default without a prompt'
+fi
+
+# The same at a real terminal, as with `ssh -t`: nothing may wait for input.
+if command -v python3 >/dev/null 2>&1; then
+  if python3 - "$ROOT" "$profile_home" <<'PY'
+import os
+import pty
+import select
+import sys
+import time
+
+root, home = sys.argv[1], sys.argv[2]
+
+def run(args, env):
+    pid, master = pty.fork()
+    if pid == 0:
+        os.environ.update(env)
+        os.environ['TERM'] = 'dumb'
+        os.execvp(args[0], args)
+    output = b''
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if select.select([master], [], [], 0.05)[0]:
+            try:
+                output += os.read(master, 4096)
+            except OSError:
+                pass
+        finished, status = os.waitpid(pid, os.WNOHANG)
+        if finished:
+            try:
+                while select.select([master], [], [], 0.05)[0]:
+                    chunk = os.read(master, 4096)
+                    if not chunk:
+                        break
+                    output += chunk
+            except OSError:
+                pass
+            os.close(master)
+            return status, output.decode(errors='replace')
+    os.kill(pid, 9)
+    os.waitpid(pid, 0)
+    os.close(master)
+    raise AssertionError(f'{args} waited for input at a terminal: {output!r}')
+
+status, out = run([os.path.join(root, 'dot'), '--headless'], {})
+assert status == 0 and 'Usage: dot' in out and 'Quit' not in out, out
+
+status, out = run([os.path.join(root, 'dot')], {'DOT_HEADLESS': '1'})
+assert status == 0 and 'Usage: dot' in out and 'Quit' not in out, out
+
+script = 'source "$1/dot"; DOT_HEADLESS=1; choose_profile_for_setup'
+status, out = run(['bash', '-c', script, '_', root], {'HOME': home})
+assert status == 0 and out.strip() == 'work' and 'Package profile [' not in out, out
+PY
+  then
+    pass 'headless mode at a terminal prints help and takes the profile default without waiting'
+  else
+    fail_test 'headless mode at a terminal prints help and takes the profile default without waiting'
+  fi
+fi
+rm -rf "$profile_home"
+
+sudo_output="$(bash -c '
+  DOT_ROOT="$1"
+  source "$1/scripts/lib/common.sh"
+  source "$1/scripts/lib/platform/linux.sh"
+  sudo() { [[ "$1" == -n ]] || { echo "sudo prompted" >&2; return 0; }; return 1; }
+  DOT_HEADLESS=1
+  if linux_check_sudo; then echo "unexpected success"; fi
+  DOT_HEADLESS=0
+  if linux_check_sudo </dev/null; then echo "unexpected success"; fi
+' _ "$ROOT" 2>&1)"
+if [[ "$sudo_output" == *'sudo needs a password; configure passwordless sudo for unattended runs or run without --headless'* &&
+  "$sudo_output" == *'or run dot from a terminal'* &&
+  "$sudo_output" != *'sudo prompted'* && "$sudo_output" != *'unexpected success'* ]]; then
+  pass 'Linux sudo check fails fast without prompting when not interactive'
+else
+  printf '%s\n' "$sudo_output" >&2
+  fail_test 'Linux sudo check fails fast without prompting when not interactive'
 fi
 
 if (( failures > 0 )); then
