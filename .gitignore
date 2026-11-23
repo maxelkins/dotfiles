@@ -2,10 +2,6 @@
 /node_modules/
 /.build/
 
-# Local setup state
-backups/
-packages/failed_packages_*.txt
-
 # Herdr runtime state
 home/.config/herdr/*.log
 home/.config/herdr/session*.json
@@ -14,7 +10,7 @@ home/.config/herdr/plugins/
 home/.config/herdr/.plugins.lock
 
 # Pi runtime and secrets
-# Pi owns its settings file; dot merges templates/pi/settings.json into it.
+# Pi owns its settings file; dot copies templates/pi/settings.json there once.
 # Ignored so a stale link on another machine cannot write it into the repo.
 home/.pi/agent/settings.json
 home/.pi/agent/auth.json
@@ -31,8 +27,6 @@ home/.agents/skills/*/node_modules/
 
 # Local secrets
 home/.zshrc.local
-__pycache__/
-*.pyc
 .env
 .envrc
 home/.config/*/secrets.*
