@@ -7,7 +7,8 @@
 # every value. Comments must be whole lines starting with #.
 #
 #   [name]
-#   version      = X.Y.Z         Exact pinned release.
+#   version      = X.Y.Z         Exact pinned release, or `latest` to follow
+#                                the newest release (see below).
 #   url          = https://...   Release asset, a .tar.gz or .tgz archive.
 #   binary       = path          Executable inside the archive.
 #   check        = args          Arguments that make the binary print its version.
@@ -18,6 +19,14 @@
 #                                Default: amd64 and arm64.
 #   sha256.amd64 = <hex>         SHA-256 of the asset for each architecture.
 #   sha256.arm64 = <hex>         Bump both hashes together with the version.
+#
+# A tool with `version = latest` has no hashes. dot setup and dot upgrade look
+# up the newest release and verify the asset against that release's own
+# checksums file, so it needs no manual bumps. dot check only confirms it runs.
+#   latest       = https://...   URL that redirects to one ending in the
+#                                release tag, e.g. .../releases/v1.2.3.
+#   checksums    = https://...   The release's checksums file, lines of
+#                                "<sha256>  <asset file name>".
 
 # Runtime manager for Pi's Node (scripts/lib/pi.sh). `asdf version` prints
 # e.g. "v0.20.2 (revision cb72590)".
@@ -29,3 +38,15 @@ check        = version
 expect       = v{version}
 sha256.amd64 = 6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d
 sha256.arm64 = 356e135a608bdfba34038c1f18c4b82434d7b6d546e30dbf372c61baaa2f442c
+
+# GitLab CLI. GitLab supports only Homebrew on Linux and Ubuntu's apt glab is
+# far behind, so follow the newest release. `glab --version` prints e.g.
+# "glab 1.131.0 (206ebab4f)".
+[glab]
+version      = latest
+latest       = https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest
+url          = https://gitlab.com/gitlab-org/cli/-/releases/v{version}/downloads/glab_{version}_linux_{arch}.tar.gz
+checksums    = https://gitlab.com/gitlab-org/cli/-/releases/v{version}/downloads/checksums.txt
+binary       = bin/glab
+check        = --version
+expect       = {version}

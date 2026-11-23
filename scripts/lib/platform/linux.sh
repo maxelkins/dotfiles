@@ -244,8 +244,13 @@ linux_block_value() {
 # documented in that file). Each gets a keyring and a list file named after
 # its block, so dot can tell which files it owns.
 
+# apt reads a keyring as ASCII-armored only when it ends in .asc, so keep
+# the key URL's binary .gpg extension when it has one.
 linux_apt_keyring() {
-  printf '/etc/apt/keyrings/%s.asc\n' "$1"
+  local ext=asc url
+  url="$(linux_apt_source_field "$1" key)" || return 1
+  [[ "$url" != *.gpg ]] || ext=gpg
+  printf '/etc/apt/keyrings/%s.%s\n' "$1" "$ext"
 }
 
 linux_apt_list() {
@@ -268,10 +273,12 @@ linux_apt_source_field() {
       fi
       ;;
     fingerprint)
-      if [[ ! "$value" =~ ^[0-9A-F]{40}$ ]]; then
-        error "[$name] fingerprint must be 40 uppercase hex digits: $value"
+      if [[ ! "$value" =~ ^[0-9A-F]{40}([[:space:]]+[0-9A-F]{40})*$ ]]; then
+        error "[$name] fingerprint must be one or more 40-digit uppercase hex fingerprints: $value"
         return 1
       fi
+      # One per line, sorted, to compare with linux_key_fingerprints.
+      value="$(tr -s '[:space:]' '\n' <<<"$value" | sort)"
       ;;
     source)
       if [[ ! "$value" =~ ^https://[^[:space:]]+([[:space:]]+[^[:space:]]+)+$ ]]; then
@@ -283,19 +290,22 @@ linux_apt_source_field() {
   printf '%s\n' "$value"
 }
 
-# Print the primary-key fingerprints in a key file, one per line. Uses a
-# throwaway GnuPG home so nothing touches ~/.gnupg.
+# Print the primary-key fingerprints in a key file, sorted, one per line.
+# Uses a throwaway GnuPG home so nothing touches ~/.gnupg.
 linux_key_fingerprints() (
   local home
   home="$(mktemp -d)" || exit 1
   # shellcheck disable=SC2064 # expand now; home is local to this subshell
   trap "rm -rf '$home'" EXIT
   gpg --homedir "$home" --batch --show-keys --with-colons "$1" 2>/dev/null |
-    awk -F: '$1 == "pub" { want = 1; next } want && $1 == "fpr" { print $10; want = 0 }'
+    awk -F: '$1 == "pub" { want = 1; next } want && $1 == "fpr" { print $10; want = 0 }' |
+    sort
 )
 
 linux_apt_list_line() {
-  printf 'deb [signed-by=%s] %s\n' "$(linux_apt_keyring "$1")" "$2"
+  local keyring
+  keyring="$(linux_apt_keyring "$1")" || return 1
+  printf 'deb [signed-by=%s] %s\n' "$keyring" "$2"
 }
 
 # True when the keyring holds exactly the pinned key and the list file matches.
@@ -303,7 +313,7 @@ linux_apt_source_current() {
   local name="$1" fingerprint source keyring list
   fingerprint="$(linux_apt_source_field "$name" fingerprint)" || return 1
   source="$(linux_apt_source_field "$name" source)" || return 1
-  keyring="$(linux_apt_keyring "$name")"
+  keyring="$(linux_apt_keyring "$name")" || return 1
   list="$(linux_apt_list "$name")"
   [[ -f "$keyring" && -f "$list" ]] || return 1
   [[ "$(linux_key_fingerprints "$keyring")" == "$fingerprint" ]] || return 1
@@ -327,8 +337,9 @@ linux_ensure_source_tools() {
 # then install the keyring and list file. Runs in a subshell so the EXIT trap
 # always removes the temporary directory.
 linux_install_apt_source() (
-  local name="$1" url fingerprint source tmp actual
+  local name="$1" url fingerprint source tmp actual keyring
   url="$(linux_apt_source_field "$name" key)" || exit 1
+  keyring="$(linux_apt_keyring "$name")" || exit 1
   fingerprint="$(linux_apt_source_field "$name" fingerprint)" || exit 1
   source="$(linux_apt_source_field "$name" source)" || exit 1
 
@@ -337,18 +348,18 @@ linux_install_apt_source() (
   trap "rm -rf '$tmp'" EXIT
   chmod 0755 "$tmp" || exit 1
 
-  if ! curl -fsSL --retry 3 -o "${tmp}/key.asc" "$url"; then
+  if ! curl -fsSL --retry 3 -o "${tmp}/key" "$url"; then
     error "Could not download $url"
     exit 1
   fi
-  actual="$(linux_key_fingerprints "${tmp}/key.asc")"
+  actual="$(linux_key_fingerprints "${tmp}/key")"
   if [[ "$actual" != "$fingerprint" ]]; then
-    error "$name signing key does not match the pinned fingerprint $fingerprint; got: ${actual:-none}"
+    error "$name signing keys do not match the pinned fingerprints ${fingerprint//$'\n'/ }; got: ${actual//$'\n'/ }"
     exit 1
   fi
   linux_apt_list_line "$name" "$source" >"${tmp}/list" || exit 1
   linux_as_root install -d -m 0755 /etc/apt/keyrings || exit 1
-  linux_as_root install -m 0644 "${tmp}/key.asc" "$(linux_apt_keyring "$name")" || exit 1
+  linux_as_root install -m 0644 "${tmp}/key" "$keyring" || exit 1
   linux_as_root install -m 0644 "${tmp}/list" "$(linux_apt_list "$name")" || exit 1
 )
 
@@ -389,6 +400,9 @@ linux_check_apt_sources() {
 }
 
 # Release binaries from packages/extras.linux (format documented in that file).
+
+# Versions resolved for tools whose block says `version = latest`, by name.
+declare -gA LINUX_EXTRA_LATEST=()
 
 linux_extras_bin_dir() {
   printf '%s/.local/bin\n' "$HOME"
@@ -445,6 +459,13 @@ linux_extra_field() {
   fi
   case "$key" in
     version)
+      if [[ "$value" == latest ]]; then
+        value="${LINUX_EXTRA_LATEST[$name]:-}"
+        if [[ -z "$value" ]]; then
+          error "[$name] latest version has not been resolved"
+          return 1
+        fi
+      fi
       if [[ ! "$value" =~ ^[0-9][0-9A-Za-z.+-]*$ ]]; then
         error "[$name] version '$value' is not a release version"
         return 1
@@ -469,6 +490,12 @@ linux_extra_field() {
     url)
       if [[ ! "$value" =~ ^https://.+\.(tar\.gz|tgz)$ ]]; then
         error "[$name] url must be an https .tar.gz or .tgz asset: $value"
+        return 1
+      fi
+      ;;
+    latest | checksums)
+      if [[ ! "$value" =~ ^https://[^[:space:]]+$ ]]; then
+        error "[$name] $key must be an https URL: $value"
         return 1
       fi
       ;;
@@ -537,11 +564,61 @@ linux_fetch_extra() (
   install -m 0755 "${tmp}/extract/${binary}" "$dest" || exit 1
 )
 
-# Install one tool unless its pinned version is already installed.
+# True when the tool's block says `version = latest`.
+linux_extra_tracks_latest() {
+  [[ "$(linux_extra_raw "$1" version 2>/dev/null)" == latest ]]
+}
+
+# Look up the newest release from the `latest` URL, which must redirect to a
+# URL ending in the release tag (v1.2.3 or 1.2.3). Sets LINUX_EXTRA_LATEST, so
+# call it in the current shell, not in $(...).
+linux_resolve_extra_latest() {
+  local name="$1" url location version
+  url="$(linux_extra_field "$name" latest)" || return 1
+  if ! location="$(curl -fsSI --retry 3 -o /dev/null -w '%{redirect_url}' "$url")" ||
+    [[ -z "$location" ]]; then
+    error "Could not look up the latest $name release from $url"
+    return 1
+  fi
+  version="${location%/}"
+  version="${version##*/}"
+  version="${version#v}"
+  if [[ ! "$version" =~ ^[0-9][0-9A-Za-z.+-]*$ ]]; then
+    error "Latest $name release tag is not a version: $location"
+    return 1
+  fi
+  LINUX_EXTRA_LATEST[$name]="$version"
+}
+
+# Print the expected SHA-256 of the asset: the pinned sha256.<arch> value, or
+# for a tool tracking latest, its line in the release's checksums file.
+linux_extra_sha256() {
+  local name="$1" arch="$2" url="$3" checksums sha256
+  if ! linux_extra_tracks_latest "$name"; then
+    linux_extra_field "$name" "sha256.${arch}"
+    return
+  fi
+  checksums="$(linux_extra_field "$name" checksums)" || return 1
+  if ! sha256="$(curl -fsSL --retry 3 "$checksums" |
+    awk -v file="${url##*/}" '$2 == file || $2 == "*" file { print $1; exit }')"; then
+    error "Could not download $checksums"
+    return 1
+  fi
+  if [[ ! "$sha256" =~ ^[0-9a-f]{64}$ ]]; then
+    error "$checksums has no SHA-256 for ${url##*/}"
+    return 1
+  fi
+  printf '%s\n' "$sha256"
+}
+
+# Install one tool unless its pinned (or newest) version is already installed.
 linux_install_extra() {
   local name="$1" version check expect url binary sha256 arch
   local bin
   bin="$(linux_extras_bin_dir)/${name}"
+  if linux_extra_tracks_latest "$name"; then
+    linux_resolve_extra_latest "$name" || return 1
+  fi
   version="$(linux_extra_field "$name" version)" || return 1
   check="$(linux_extra_field "$name" check)" || return 1
   expect="$(linux_extra_field "$name" expect)" || return 1
@@ -554,11 +631,11 @@ linux_install_extra() {
   arch="$(linux_extras_arch)" || return 1
   url="$(linux_extra_field "$name" url)" || return 1
   binary="$(linux_extra_field "$name" binary)" || return 1
-  sha256="$(linux_extra_field "$name" "sha256.${arch}")" || return 1
   if ! command_exists curl || ! command_exists sha256sum || ! command_exists tar; then
     error "curl, sha256sum, and tar are required to install $name; run: dot setup"
     return 1
   fi
+  sha256="$(linux_extra_sha256 "$name" "$arch" "$url")" || return 1
   linux_fetch_extra "$name" "$url" "$sha256" "$binary" "$bin" || return 1
   if ! linux_extra_has_version "$bin" "$check" "$expect"; then
     error "Installed $name does not report $expect"
@@ -579,12 +656,23 @@ linux_install_extras() {
 }
 
 # Read-only: warn about each missing or outdated tool and return 1 if any.
+# Offline: a tool tracking latest only has to be installed and runnable;
+# dot upgrade moves it to the newest release.
 linux_check_extras() {
   local names name version check expect bin line failed=0
   names="$(linux_extras_names)" || return 1
   while IFS= read -r name; do
     [[ -n "$name" ]] || continue
     bin="$(linux_extras_bin_dir)/${name}"
+    if linux_extra_tracks_latest "$name"; then
+      if ! check="$(linux_extra_field "$name" check)"; then
+        failed=1
+      elif ! linux_extra_version_line "$bin" "$check" >/dev/null; then
+        warn "Release binary $name is not installed at ~/.local/bin/${name}"
+        failed=1
+      fi
+      continue
+    fi
     if ! version="$(linux_extra_field "$name" version)" ||
       ! check="$(linux_extra_field "$name" check)" ||
       ! expect="$(linux_extra_field "$name" expect)"; then
