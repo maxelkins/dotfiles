@@ -2,6 +2,47 @@
 
 DOT_BACKUP_SESSION=""
 
+# Top-level home/ names this platform skips (see scripts/lib/platform.sh).
+home_excludes() {
+  if declare -F platform_home_excludes >/dev/null; then
+    platform_home_excludes
+  fi
+}
+
+# Print find arguments that prune each excluded top-level home/ entry.
+home_exclude_find_args() {
+  local name
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    printf '%s\0' -path "${DOT_HOME_DIR}/${name}" -prune -o
+  done < <(home_excludes)
+}
+
+# List managed directories (excluding home/ itself), skipping platform excludes.
+managed_home_dirs() {
+  local args=() arg
+  while IFS= read -r -d '' arg; do args+=("$arg"); done < <(home_exclude_find_args)
+  find "$DOT_HOME_DIR" -mindepth 1 ${args[@]+"${args[@]}"} -type d -print | LC_ALL=C sort
+}
+
+# List managed files, skipping platform excludes.
+managed_home_files() {
+  local args=() arg
+  while IFS= read -r -d '' arg; do args+=("$arg"); done < <(home_exclude_find_args)
+  find "$DOT_HOME_DIR" ${args[@]+"${args[@]}"} -type f ! -name '.DS_Store' -print | LC_ALL=C sort
+}
+
+# Stow --ignore patterns match the end of a path relative to the package, so
+# anchoring with ^ limits each pattern to the top-level entry of that name.
+home_exclude_stow_args() {
+  local name escaped
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    escaped="$(printf '%s' "$name" | sed 's/[][\\.*^$+?(){}|\/]/\\&/g')"
+    printf '%s\0' "--ignore=^${escaped}"
+  done < <(home_excludes)
+}
+
 managed_target_matches() {
   local source="$1"
   local target="$2"
@@ -44,7 +85,7 @@ prepare_managed_directories() {
     fi
 
     mkdir -p "$target"
-  done < <(find "$DOT_HOME_DIR" -mindepth 1 -type d | LC_ALL=C sort)
+  done < <(managed_home_dirs)
 }
 
 prepare_managed_files() {
@@ -62,7 +103,7 @@ prepare_managed_files() {
     if [[ -e "$target" || -L "$target" ]]; then
       backup_target "$target"
     fi
-  done < <(find "$DOT_HOME_DIR" -type f ! -name '.DS_Store' | LC_ALL=C sort)
+  done < <(managed_home_files)
 }
 
 migrate_legacy_pi_skills() {
@@ -135,8 +176,11 @@ stow_home() {
   prepare_managed_directories
   prepare_managed_files
 
+  local ignore_args=() arg
+  while IFS= read -r -d '' arg; do ignore_args+=("$arg"); done < <(home_exclude_stow_args)
+
   info "Applying managed home links"
-  if ! run_prefixed Stow stow --restow --no-folding --ignore='\.DS_Store' --dir "$DOT_ROOT" --target "$HOME" home; then
+  if ! run_prefixed Stow stow --restow --no-folding --ignore='\.DS_Store' ${ignore_args[@]+"${ignore_args[@]}"} --dir "$DOT_ROOT" --target "$HOME" home; then
     error "Managed home links could not be applied; run: dot apply home"
     return 1
   fi
