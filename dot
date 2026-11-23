@@ -38,6 +38,7 @@ Commands:
   apply home [option]     Reconcile managed home links
   apply macos             Apply macOS preferences
   apply dock              Configure Dock applications
+  apply linux-agent       Install agent-box packages and pinned runtimes
   help                    Show this help
 
 Options:
@@ -198,9 +199,9 @@ cmd_check() {
 cmd_apply() {
   local target="${1:-}"
   if [[ -z "$target" ]]; then
-    error "Usage: dot apply <home|macos|dock>"
+    error "Usage: dot apply <home|macos|dock|linux-agent>"
     print_summary "No configuration was applied"
-    print_action_required "Run: dot apply <home|macos|dock>"
+    print_action_required "Run: dot apply <home|macos|dock|linux-agent>"
     return 1
   fi
   shift
@@ -271,10 +272,31 @@ cmd_apply() {
         return 1
       fi
       ;;
+    linux-agent)
+      if ! require_no_args "apply linux-agent" "$@"; then
+        print_summary "Agent-box setup was not changed"
+        print_action_required "Run: dot apply linux-agent"
+        return 1
+      fi
+      info "Applying the opt-in Linux agent-box setup"
+      if ! require_linux; then
+        print_summary "Agent-box setup was not changed"
+        print_action_required "Run this command on Linux"
+        return 1
+      fi
+      if run_prefixed Linux bash "${DOT_ROOT}/scripts/linux-agent.sh"; then
+        print_summary "Agent-box setup was applied successfully"
+        print_next_action "Run: dot apply home, then dot check"
+      else
+        print_summary "Agent-box setup could not be applied"
+        print_action_required "Fix the error above, then retry: dot apply linux-agent"
+        return 1
+      fi
+      ;;
     *)
       error "Unknown apply target: $target"
       print_summary "No configuration was applied"
-      print_action_required "Run: dot apply <home|macos|dock>"
+      print_action_required "Run: dot apply <home|macos|dock|linux-agent>"
       return 1
       ;;
   esac
@@ -300,6 +322,7 @@ apply_menu() {
   print_menu_option 1 'Managed home links'
   print_menu_option 2 'macOS preferences'
   print_menu_option 3 'Dock configuration'
+  print_menu_option 4 'Linux agent box'
   print_menu_option b 'Back'
   printf '\n'
   read_menu_choice choice || return 0
@@ -308,8 +331,9 @@ apply_menu() {
     1) run_menu_command apply home ;;
     2) run_menu_command apply macos ;;
     3) run_menu_command apply dock ;;
+    4) run_menu_command apply linux-agent ;;
     b|B|'') return 0 ;;
-    *) warn "Invalid choice '$choice'; choose 1, 2, 3, or b" ;;
+    *) warn "Invalid choice '$choice'; choose 1-4 or b" ;;
   esac
 }
 

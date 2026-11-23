@@ -110,6 +110,12 @@ require_macos() {
   fi
 }
 
+require_linux() {
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    fail "this command supports Linux only"
+  fi
+}
+
 configure_git_hooks() {
   info "Configuring repository hooks"
   if run_prefixed Git git -C "$DOT_ROOT" config core.hooksPath .githooks; then

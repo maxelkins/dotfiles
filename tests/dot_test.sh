@@ -180,6 +180,8 @@ menu_output="$({
 2
 4
 3
+4
+4
 x
 q
 INPUT
@@ -196,6 +198,7 @@ assert_contains "$menu_output" 'DISPATCH check' 'check menu choice uses command 
 assert_contains "$menu_output" 'DISPATCH apply:home' 'home apply menu choice uses command dispatch'
 assert_contains "$menu_output" 'DISPATCH apply:macos' 'macOS apply menu choice uses command dispatch'
 assert_contains "$menu_output" 'DISPATCH apply:dock' 'Dock apply menu choice uses command dispatch'
+assert_contains "$menu_output" 'DISPATCH apply:linux-agent' 'Linux agent-box apply menu choice uses command dispatch'
 assert_contains "$menu_output" "Invalid choice 'x'" 'invalid menu choice returns a useful message'
 
 profile_home="$(mktemp -d)"

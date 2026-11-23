@@ -9,9 +9,10 @@ This repository manages a macOS home directory with GNU Stow.
 - Preserve user changes in `home/.agents/.skill-lock.json`. Skill installers may update it outside an agent task.
 - Keep `home/.pi/agent/extensions/herdr-agent-state.ts` tracked but generated. Update it through Herdr's integration installer rather than editing it by hand.
 - Put shared Homebrew declarations in `packages/bundle`, personal declarations in `packages/bundle.personal`, and work declarations in `packages/bundle.work`.
+- Put Linux agent-box package declarations in `packages/bundle.linux-agent`; runtime pins, including asdf's own version, stay in the root `.tool-versions`.
 - Record any intentional third-party Homebrew trust at formula scope in `packages/trusted-formulae`.
 - Treat `~/.config/mac-setup/profile` as local machine state. Package commands read it to select one optional bundle.
-- Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
+- Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit host mutations (macOS preferences, Linux agent-box setup) in `scripts/`.
 - Use `dot apply home` for managed links. Its preflight backs up conflicts before GNU Stow runs.
 - Keep `dot apply macos` and `dot apply dock` opt-in. They change host state.
 

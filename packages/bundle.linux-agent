@@ -1,0 +1,26 @@
+# apt packages for Linux agent boxes (Ubuntu 24.04+).
+# Minimal by design: fresh boxes get only hard dependencies of the tracked
+# home/ config and the asdf runtime. Everything else is appended here when a
+# real need shows up — this file is the "add as we go" list.
+# Applied by: dot apply linux-agent (scripts/linux-agent.sh)
+# Drift-check: `apt-mark showmanual` should converge toward this list.
+
+# Fresh-box bootstrap: git clone + gh auth login (runbook step 1)
+git
+gh
+
+# Required by dot apply home — stow.sh preflight
+stow
+
+# Required by home/.gitconfig — filter.lfs.required = true, git hard-fails without it
+git-lfs
+
+# Required by asdf-nodejs runtime builds (gcc, g++, make; python3 is stock)
+build-essential
+
+# --- Add when a need actually arises (uncomment, then dot apply linux-agent) ---
+# zsh/starship — only if agent boxes should run the tracked .zshrc as login
+# shell. Note: .zshrc references /opt/homebrew asdf paths that need a Linux
+# guard first.
+# zsh
+# starship

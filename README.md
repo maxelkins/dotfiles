@@ -53,6 +53,7 @@ dot skills update           Update vendored skills and reconcile home links
 dot apply home              Reconcile managed home links
 dot apply macos             Apply macOS preferences
 dot apply dock              Configure Dock applications
+dot apply linux-agent       Install agent-box packages and pinned runtimes
 dot help                    Show help
 ```
 
@@ -64,7 +65,7 @@ dot help                    Show help
 .
 ├── dot                  # Menu, command dispatch, and orchestration
 ├── home/                # Files linked into $HOME
-│   ├── .agents/         # Shared agent skills
+│   ├── .agents/         # Shared agent skills and global agent rules
 │   ├── .config/         # Application configuration
 │   ├── .pi/             # Pi configuration
 │   └── Library/         # macOS application support files
@@ -72,10 +73,12 @@ dot help                    Show help
 │   ├── bundle           # Packages for every machine
 │   ├── bundle.personal  # Personal applications
 │   ├── bundle.work      # Work applications
+│   ├── bundle.linux-agent  # apt packages for Linux agent boxes
 │   └── trusted-formulae # Approved third-party formulae
-├── scripts/lib/         # Reusable dot implementation
-├── scripts/macos.sh     # macOS preferences
-└── scripts/dock.sh      # Dock contents
+├── scripts/lib/            # Reusable dot implementation
+├── scripts/macos.sh        # macOS preferences
+├── scripts/linux-agent.sh  # Linux agent-box setup
+└── scripts/dock.sh         # Dock contents
 ```
 
 Edit files under `home/`, not the linked copies in `$HOME`.
@@ -91,6 +94,36 @@ Setup asks for a profile when needed, accepts one directly, and the interactive 
 ```
 
 After changing the profile from the menu, run `dot upgrade` to reconcile its packages. The work profile leaves JetBrains Mono Nerd Font, GitHub Desktop, and Obsidian to external management. `packages/trusted-formulae` records approved third-party formulae.
+
+## Linux agent boxes
+
+Agent VMs share this repository with the Macs. A fresh Ubuntu box runs:
+
+```sh
+sudo apt-get install -y git gh        # bootstrap only; the bundle takes over after
+gh auth login
+git clone https://github.com/maxelkins/dotfiles.git ~/dev/dotfiles
+cd ~/dev/dotfiles && ./dot apply linux-agent
+./dot apply home
+```
+
+`dot apply linux-agent` is opt-in, like the macOS preferences. It installs
+`packages/bundle.linux-agent`, installs the asdf version pinned in
+`.tool-versions` to `~/.local/bin` (release tarball, md5-verified, no sudo),
+adds plugins for every tool the file names through asdf's official short-name
+registry, and builds the pinned runtimes. sudo is required for apt only.
+
+The bundle is minimal by design: every active line is a hard dependency of
+the tracked `home/` configuration or the asdf runtime. Anything else is
+appended when a real need shows up; `apt_drift_report` in
+`scripts/lib/linux.sh` diffs `apt-mark showmanual` against the bundle so
+drift is visible. asdf's own version lives in `.tool-versions` alongside the
+runtimes it manages — one conventional file holds every version statement.
+
+`dot apply home` links the shared layer: skills in `~/.agents/skills`, and
+global rules in `~/.agents/AGENTS.md`, which every harness reads — Pi through
+the `home/.pi/agent/AGENTS.md` symlink, OpenCode through the `instructions`
+entry in `home/.config/opencode/opencode.jsonc`.
 
 ## Pi runtime
 
