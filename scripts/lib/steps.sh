@@ -50,6 +50,7 @@ step_trim() {
 
 # Split a row into STEP_NAME, STEP_CHECK, STEP_INSTALL, STEP_UPGRADE,
 # STEP_NEEDS, STEP_REQUIRED, and STEP_ACTION.
+# shellcheck disable=SC2034 # Callers in other files read the STEP_* globals.
 step_parse() {
   local name check install upgrade needs required action
   IFS='|' read -r name check install upgrade needs required action <<<"$1"
@@ -142,6 +143,7 @@ check_pi() {
   fi
 }
 
+# shellcheck disable=SC2088 # "~/" is display text, not a path.
 check_managed_links() {
   local source relative target checked=0 healthy=0
   while IFS= read -r source; do
@@ -171,6 +173,7 @@ check_managed_links() {
   success "$checked managed links are correct"
 }
 
+# shellcheck disable=SC2088 # "~/" is display text, not a path.
 check_dot_command() {
   local target="${HOME}/.local/bin/dot"
   if [[ -L "$target" && "$target" -ef "${DOT_ROOT}/dot" ]]; then
