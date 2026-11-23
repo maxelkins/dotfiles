@@ -122,6 +122,19 @@ dot apply home --archive-legacy-skills
 
 The option also works with `dot setup`.
 
+## Rex skill
+
+The Rex-generated skill stub is tracked in `home/.agents/skills/rex/SKILL.md`
+and linked by `dot apply home` like other shared skills. It loads its guide from
+the installed `rex` CLI, so upgrading Rex updates the instructions without
+vendoring the full guide. Session naming is disabled.
+
+Rex's optional agent hooks are separate, per-account setup. With Rex installed,
+run `rex skill setup` to install supported hooks, then `rex skill status` to
+check them. Hook settings are not managed by this repository. If setup updates
+the managed stub, review its diff before committing. The stub has no entry in
+`packages/skills.json` because Rex, rather than a Git source, generates it.
+
 ## Skill updates
 
 Run `dot skills update` to download the latest default-branch versions of skills
