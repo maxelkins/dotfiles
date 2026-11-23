@@ -89,6 +89,7 @@ pi_settings() {
     "${DOT_ROOT}/templates/pi/settings.json" "${HOME}/.pi/agent/settings.json"
 }
 
+# shellcheck disable=SC2088 # "~/" is display text, not a path.
 apply_pi_settings() {
   local status=0
   info "Applying shared Pi settings"
@@ -106,6 +107,7 @@ apply_pi_settings() {
   esac
 }
 
+# shellcheck disable=SC2088 # "~/" is display text, not a path.
 check_pi_settings() {
   local output status=0 line
   output="$(pi_settings check 2>&1)" || status=$?
