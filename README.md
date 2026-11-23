@@ -178,3 +178,25 @@ dot apply dock
 `dot apply macos` also asks for the computer name.
 
 Thanks to [dmmulroy](https://github.com/dmmulroy/.dotfiles) for the original inspiration.
+
+## Linux agent boxes
+
+`dot` also sets up Debian/Ubuntu boxes (tested on Ubuntu 24.04) for coding agents. Bootstrap as a user with sudo:
+
+```sh
+sudo apt-get install -y git
+git clone https://github.com/maxelkins/dotfiles.git ~/.dotfiles
+cd ~/.dotfiles
+./dot setup
+```
+
+Restart the shell, then run `dot check`.
+
+Differences from macOS:
+
+- No package profiles: apt installs the single `packages/bundle.linux`.
+- No Oh My Zsh; bash is the shell. Setup adds a marked block at the top of `~/.bashrc` and `~/.profile` that sources `~/.config/dotfiles/env.sh`, so `~/.local/bin` and asdf shims are on `PATH` even for non-interactive SSH commands.
+- `home/Library/` is not linked.
+- asdf is a release binary in `~/.local/bin`, pinned with SHA-256 hashes in `packages/asdf.linux`.
+
+`tests/linux/run.sh` runs setup and check in a fresh `ubuntu:24.04` container; CI runs it on every push.

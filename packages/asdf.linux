@@ -1,0 +1,4 @@
+# asdf release installed by dot on Linux into ~/.local/bin. Bump version and both hashes together.
+version 0.20.2
+sha256 amd64 6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d
+sha256 arm64 356e135a608bdfba34038c1f18c4b82434d7b6d546e30dbf372c61baaa2f442c
