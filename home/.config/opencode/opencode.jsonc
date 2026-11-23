@@ -7,5 +7,5 @@
   // Never manage here: provider auth and session state live in
   // ~/.local/share/opencode (covered by the existing secrets rules).
   "skills": ["~/.agents/skills"],
-  "instructions": ["~/.agents/AGENTS.md"]
+  "instructions": ["~/.agents/AGENTS.md"],
 }
