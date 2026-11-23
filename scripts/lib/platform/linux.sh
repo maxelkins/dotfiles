@@ -401,8 +401,14 @@ linux_check_apt_sources() {
 
 # Release binaries from packages/extras.linux (format documented in that file).
 
-# Versions resolved for tools whose block says `version = latest`, by name.
-declare -gA LINUX_EXTRA_LATEST=()
+# Versions resolved for tools whose block says `version = latest`, as
+# "<name> <version>" lines. Not an associative array: the macOS tests source
+# this file under bash 3.2.
+LINUX_EXTRA_LATEST=''
+
+linux_extra_latest_version() {
+  awk -v name="$1" '$1 == name { version = $2 } END { if (version != "") print version }' <<<"$LINUX_EXTRA_LATEST"
+}
 
 linux_extras_bin_dir() {
   printf '%s/.local/bin\n' "$HOME"
@@ -460,7 +466,7 @@ linux_extra_field() {
   case "$key" in
     version)
       if [[ "$value" == latest ]]; then
-        value="${LINUX_EXTRA_LATEST[$name]:-}"
+        value="$(linux_extra_latest_version "$name")"
         if [[ -z "$value" ]]; then
           error "[$name] latest version has not been resolved"
           return 1
@@ -587,7 +593,7 @@ linux_resolve_extra_latest() {
     error "Latest $name release tag is not a version: $location"
     return 1
   fi
-  LINUX_EXTRA_LATEST[$name]="$version"
+  LINUX_EXTRA_LATEST+="${name} ${version}"$'\n'
 }
 
 # Print the expected SHA-256 of the asset: the pinned sha256.<arch> value, or
