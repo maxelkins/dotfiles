@@ -1,31 +1,12 @@
-# apt packages for Linux agent boxes (Ubuntu 24.04+). Installed by: dot setup
-# Minimal by design: every active line is a hard dependency of dot, the
-# tracked home/ configuration, or the asdf/Pi runtime. Add a package only
-# with a comment saying which of those needs it.
+# apt packages for Linux agent boxes (Ubuntu 24.04+), installed by dot setup.
+# Tools apt lacks or ships too old go in packages/install.linux instead.
 
-# Repository clone and updates; asdf plugin add clones plugins with git
 git
-
-# GitHub authentication for agents (gh auth login, gh pr ...), from GitHub's
-# repository in packages/apt-sources.linux
-gh
-
-# dot apply home links home/ with GNU Stow
 stow
-
-# home/.gitconfig sets filter.lfs.required = true; git fails without git-lfs
+# home/.gitconfig requires the LFS filter
 git-lfs
-
-# dot downloads asdf; asdf-nodejs (node-build) downloads prebuilt Node
+# dot downloads releases; asdf-nodejs downloads prebuilt Node
 curl
 ca-certificates
-
-# Verifies third-party apt signing keys from packages/apt-sources.linux
-gnupg
-
-# Claude Code CLI, from Anthropic's repository in packages/apt-sources.linux.
-# Upgraded with the rest of the bundle by dot upgrade.
-claude-code
-
-# Native npm modules (node-gyp: gcc, g++, make). Prebuilt Node does not need it.
+# Native npm modules (node-gyp)
 build-essential

@@ -1,33 +1,27 @@
 # Repository instructions
 
-This repository manages a home directory with GNU Stow on macOS and on Debian/Ubuntu Linux agent boxes.
+This repository sets up a home directory on macOS and on Debian/Ubuntu Linux agent boxes with one Bash script, `dot`, and GNU Stow.
 
 ## Working rules
 
 - Treat `home/` as a mirror of `$HOME`. For example, edit `home/.config/starship.toml` for `~/.config/starship.toml`.
-- Keep machine state, credentials, sessions, caches, and generated files outside `home/`. Add a narrow `.gitignore` rule when a managed tool writes runtime files beside tracked configuration.
-- Preserve user changes in `home/.agents/.skill-lock.json`. Skill installers may update it outside an agent task.
-- Add or update shared skills only under `home/.agents/skills/` (or with `dot skills update`), then run `dot apply home`. Never replace the managed links in `~/.agents/skills` or `~/.claude/skills` with copied directories; `dot check` flags copies under `~/.agents/skills` as links that need repair.
-- Put shared Pi settings in `templates/pi/settings.json`. Pi owns `~/.pi/agent/settings.json`; `dot apply home` merges the shared keys into it. Leave per-machine choices such as `defaultModel` out of the shared file.
-- Keep `home/.pi/agent/extensions/herdr-agent-state.ts` tracked but generated. Update it through Herdr's integration installer rather than editing it by hand.
-- Put shared Homebrew declarations in `packages/bundle`, personal declarations in `packages/bundle.personal`, and work declarations in `packages/bundle.work`.
-- Put Linux apt declarations in `packages/bundle.linux`. Add a vendor apt repository as a block in `packages/apt-sources.linux` with its pinned key fingerprint. Put Linux release binaries, including asdf and any tool whose apt version is too old, in `packages/extras.linux` as one block per tool with an exact version and SHA-256 hashes; add a block rather than a new installer. Never pin asdf in the repo-root `.tool-versions`.
-- Record any intentional third-party Homebrew trust at formula scope in `packages/trusted-formulae`.
-- Treat `~/.config/mac-setup/profile` as local machine state. Package commands read it to select one optional bundle.
-- Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
-- Add setup work as a row in `scripts/lib/steps.sh` with both a check and an installer; `dot check` reads the same rows.
-- Put platform-specific behavior in `scripts/lib/platform/<os>.sh` behind the interface documented in `scripts/lib/platform.sh`. Commands call `platform_*` functions instead of checking the OS.
-- Use `dot apply home` for managed links. Its preflight backs up conflicts before GNU Stow runs.
-- Keep `dot apply macos` and `dot apply dock` opt-in. They change host state.
+- Keep machine state, credentials, sessions, caches, and generated files out of `home/`. Add a narrow `.gitignore` rule when a tool writes runtime files beside tracked configuration.
+- Keep `dot` a single, readable file. Prefer a list in `packages/` and a few plain lines over a new abstraction. It must stay bash 3.2 compatible, because macOS runs it with `/bin/bash`.
+- Packages: Homebrew in `packages/bundle`, plus `bundle.personal` and `bundle.work` for profiles. apt in `packages/bundle.linux`. Linux tools that apt lacks or ships too old go in `packages/install.linux`, as one line each: `<command> <install command>`.
+- Skills you write go in `home/.agents/skills/`. Install third-party skills with the skills CLI (see README) so they land in `home/.agents/.skill-lock.json`; do not commit their files. Preserve changes to that lock file, because the CLI writes it outside agent tasks.
+- Pi owns `~/.pi/agent/settings.json`. `templates/pi/settings.json` is only the first-run copy.
+- Keep `home/.pi/agent/extensions/herdr-agent-state.ts` tracked but generated. Update it with Herdr's integration installer, not by hand.
+- Use asdf for runtimes. Never pin asdf itself in the repo-root `.tool-versions`.
+- `dot macos` and `dot dock` change host state. Run them only when asked.
 
 ## Commits
 
-- Use Conventional Commits for commit messages.
+- Use Conventional Commits.
 
 ## Verification
 
-After shell or layout changes, run:
+After changing `dot` or `scripts/`, run:
 
 ```sh
-bash -n dot scripts/*.sh scripts/lib/*.sh scripts/lib/platform/*.sh
+bash -n dot scripts/*.sh && shellcheck dot scripts/*.sh
 ```

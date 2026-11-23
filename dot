@@ -1,429 +1,517 @@
 #!/usr/bin/env bash
+# dot: set up and maintain this machine from this repository.
+#
+# home/ mirrors $HOME and is linked with GNU Stow. Packages live in packages/.
+# Everything else is in this file, top to bottom: output helpers, packages,
+# Linux tools, Pi, skills, links, then the commands. Keep it bash 3.2 safe:
+# macOS runs it with /bin/bash.
+# shellcheck disable=SC2088 # "~/" in messages is display text
 set -euo pipefail
 
-DOT_SCRIPT="${BASH_SOURCE[0]}"
-while [[ -L "$DOT_SCRIPT" ]]; do
-  DOT_SCRIPT_DIR="$(cd -P "$(dirname "$DOT_SCRIPT")" && pwd)"
-  DOT_SCRIPT="$(readlink "$DOT_SCRIPT")"
-  [[ "$DOT_SCRIPT" == /* ]] || DOT_SCRIPT="${DOT_SCRIPT_DIR}/${DOT_SCRIPT}"
+# Resolve the repository through the ~/.local/bin/dot symlink.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  dir="$(cd -P "$(dirname "$self")" && pwd)"
+  self="$(readlink "$self")"
+  [[ "$self" == /* ]] || self="${dir}/${self}"
 done
+DOT_ROOT="$(cd -P "$(dirname "$self")" && pwd)"
+HOME_DIR="${DOT_ROOT}/home"
+PACKAGES="${DOT_ROOT}/packages"
+PROFILE_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/dotfiles/profile"
+PI_PACKAGE="@earendil-works/pi-coding-agent"
+SKILL_AGENTS=(pi claude-code)
+unset self dir
 
-DOT_ROOT="$(cd -P "$(dirname "$DOT_SCRIPT")" && pwd)"
-DOT_HOME_DIR="${DOT_ROOT}/home"
-readonly DOT_SCRIPT DOT_ROOT DOT_HOME_DIR
-export DOT_ROOT DOT_HOME_DIR
+export PATH="${HOME}/.local/bin:${ASDF_DATA_DIR:-${HOME}/.asdf}/shims:${PATH}"
 
-# shellcheck source=scripts/lib/common.sh
-source "${DOT_ROOT}/scripts/lib/common.sh"
-# shellcheck source=scripts/lib/profile.sh
-source "${DOT_ROOT}/scripts/lib/profile.sh"
-# shellcheck source=scripts/lib/platform.sh
-source "${DOT_ROOT}/scripts/lib/platform.sh"
-# shellcheck source=scripts/lib/stow.sh
-source "${DOT_ROOT}/scripts/lib/stow.sh"
-# shellcheck source=scripts/lib/pi.sh
-source "${DOT_ROOT}/scripts/lib/pi.sh"
-# shellcheck source=scripts/lib/steps.sh
-source "${DOT_ROOT}/scripts/lib/steps.sh"
-# shellcheck source=scripts/lib/doctor.sh
-source "${DOT_ROOT}/scripts/lib/doctor.sh"
-# shellcheck source=scripts/lib/skills.sh
-source "${DOT_ROOT}/scripts/lib/skills.sh"
+# ─── Output ──────────────────────────────────────────────────────────────────
 
-print_help() {
-  cat <<'HELP'
-Usage: dot [--headless] [command]
-
-Commands:
-  setup [profile]         Set up this machine using base, personal, or work packages
-  upgrade                 Upgrade everything managed by this repository
-  check                   Run read-only health checks
-  skills update           Update vendored skills and reconcile home links
-  apply home [option]     Reconcile managed home links
-  apply macos             Apply macOS preferences
-  apply dock              Configure Dock applications
-  help                    Show this help
-
-Global options (before the command):
-  --headless              Never prompt: take defaults or fail fast instead.
-                          Same as DOT_HEADLESS=1. For scripts and SSH sessions.
-
-Options:
-  --archive-legacy-skills Archive old Pi skill copies before applying home links
-
-Run dot without a command to open the interactive menu; without a terminal, or
-in headless mode, it prints this help instead.
-HELP
-}
-
-cmd_setup() {
-  local requested_profile=""
-  local archive_legacy_skills=0
-  local failures=0
-
-  while (( $# > 0 )); do
-    case "$1" in
-      base|personal|work)
-        if [[ -n "$requested_profile" ]]; then
-          error "Only one package profile may be selected"
-          print_summary "Setup did not start"
-          print_action_required "Run: dot setup [base|personal|work]"
-          return 1
-        fi
-        requested_profile="$1"
-        shift
-        ;;
-      --archive-legacy-skills)
-        archive_legacy_skills=1
-        shift
-        ;;
-      *)
-        error "Unknown setup option: $1"
-        print_summary "Setup did not start"
-        print_action_required "Run: dot help"
-        return 1
-        ;;
-    esac
-  done
-
-  info "Setting up packages, Pi, shell tools, managed links, and repository hooks"
-  if ! require_supported_platform; then
-    print_summary "Setup failed before changes were made"
-    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
-    return 1
-  fi
-
-  local profile=""
-  if platform_supports_profiles; then
-    if ! profile="$(choose_profile_for_setup "$requested_profile")"; then
-      print_summary "Setup failed because the package profile is invalid"
-      print_action_required "Run: dot setup [base|personal|work]"
-      return 1
-    fi
-    save_profile "$profile"
-  elif [[ -n "$requested_profile" ]]; then
-    warn "Package profiles do not apply on $(platform_label); ignoring '$requested_profile'"
-  fi
-
-  # Steps live in scripts/lib/steps.sh; dot check verifies the same rows.
-  DOT_ARCHIVE_LEGACY_SKILLS="$archive_legacy_skills" run_steps install || failures="$DOT_STEP_FAILURES"
-
-  if (( failures > 0 )); then
-    print_summary "Setup completed with $failures failed stage(s)"
-    print_action_required "Fix the errors above, then retry: dot setup${profile:+ $profile}"
-    return 1
-  fi
-
-  print_summary "Setup completed successfully"
-  print_action_required \
-    "Restart your shell so it picks up the new PATH (node, npm, Pi extensions):" \
-    "  exec ${SHELL:-bash} -l    # or open a new terminal" \
-    "Then run: dot check"
-}
-
-cmd_upgrade() {
-  if ! require_no_args upgrade "$@"; then
-    print_summary "Upgrade did not start"
-    print_action_required "Run: dot upgrade"
-    return 1
-  fi
-  if ! require_supported_platform; then
-    print_summary "Upgrade did not start"
-    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
-    return 1
-  fi
-  local failures=0
-  local warnings=0
-  local repo_status=0
-
-  info "Upgrading repository files, packages, Pi, managed links, and health checks"
-
-  if ! repository_is_clean "$DOT_ROOT"; then
-    error "Repository has uncommitted changes"
-    print_summary "Upgrade stopped before making changes"
-    print_action_required "Commit or stash changes shown by: git -C $DOT_ROOT status --short" "Then run: dot upgrade"
-    return 1
-  fi
-
-  if update_repository "$DOT_ROOT"; then
-    :
+color() {
+  local code="$1"
+  shift
+  if [[ -t 1 && "${TERM:-}" != dumb && -z "${NO_COLOR+x}" ]]; then
+    printf '\033[%sm%s\033[0m' "$code" "$*"
   else
-    repo_status=$?
-    if (( repo_status == 2 )); then
-      ((warnings += 1))
-    else
-      ((failures += 1))
-    fi
+    printf '%s' "$*"
   fi
+}
 
-  run_steps upgrade || ((failures += DOT_STEP_FAILURES))
+step() { printf '\n%s\n' "$(color '1;36' "==> $*")"; }
+ok() { printf '  %s %s\n' "$(color 32 '✓')" "$*"; }
+warn() { printf '  %s %s\n' "$(color 33 '!')" "$*" >&2; }
+err() { printf '  %s %s\n' "$(color 31 '✗')" "$*" >&2; }
+have() { command -v "$1" >/dev/null 2>&1; }
+is_macos() { [[ "$(uname -s)" == Darwin ]]; }
+is_linux() { [[ "$(uname -s)" == Linux ]]; }
 
-  info "Verifying the upgraded setup"
-  if ! run_doctor embedded; then
-    ((failures += 1))
-  fi
+# Run each named step and keep going after a failure. Sets FAILED.
+run_all() {
+  local fn
+  FAILED=()
+  for fn in "$@"; do
+    "$fn" || FAILED+=("$fn")
+  done
+}
 
-  if (( failures > 0 )); then
-    print_summary "Upgrade completed with $failures failed stage(s) and $warnings warning(s)"
-    print_action_required "Resolve the failures above, then retry: dot upgrade"
+finish() {
+  if (( ${#FAILED[@]} > 0 )); then
+    printf '\n%s %s\n' "$(color '1;31' 'Failed:')" "${FAILED[*]}"
     return 1
   fi
+  printf '\n%s\n' "$(color '1;32' "$1")"
+}
 
-  if (( warnings > 0 )); then
-    local branch
-    branch="$(git -C "$DOT_ROOT" branch --show-current)"
-    print_summary "Upgrade completed with $warnings warning(s); managed tools are healthy"
-    print_action_required "Configure repository updates: git -C $DOT_ROOT push -u origin ${branch:-<branch>}"
+# ─── Headless ────────────────────────────────────────────────────────────────
+# `dot --headless` (or DOT_HEADLESS=1) never waits for input: for agent boxes
+# and SSH sessions. Tools that would prompt fail instead.
+
+headless() { [[ "${DOT_HEADLESS:-0}" == 1 ]]; }
+
+configure_headless() {
+  case "${DOT_HEADLESS:-}" in
+    '' | 0 | false | no) DOT_HEADLESS=0 ;;
+    1 | true | yes)
+      export DOT_HEADLESS=1 DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+        NONINTERACTIVE=1 GIT_TERMINAL_PROMPT=0
+      if [[ -z "${GIT_SSH_COMMAND:-}" && -z "${GIT_SSH:-}" ]]; then
+        export GIT_SSH_COMMAND='ssh -o BatchMode=yes'
+      fi
+      ;;
+    *) err "DOT_HEADLESS must be 1 or 0, not '${DOT_HEADLESS}'"; return 1 ;;
+  esac
+}
+
+# ─── Profile (macOS) ─────────────────────────────────────────────────────────
+# base, personal, or work: picks packages/bundle.<profile> on top of
+# packages/bundle. Stored outside the repository because it is machine state.
+
+profile() {
+  local value=base
+  [[ ! -f "$PROFILE_FILE" ]] || IFS= read -r value <"$PROFILE_FILE" || true
+  printf '%s\n' "${value:-base}"
+}
+
+save_profile() {
+  case "$1" in
+    base | personal | work) ;;
+    *) err "Profile must be base, personal, or work, not '$1'"; return 1 ;;
+  esac
+  mkdir -p "$(dirname "$PROFILE_FILE")"
+  printf '%s\n' "$1" >"$PROFILE_FILE"
+}
+
+brewfiles() {
+  printf '%s\n' "${PACKAGES}/bundle"
+  [[ "$(profile)" == base ]] || printf '%s\n' "${PACKAGES}/bundle.$(profile)"
+}
+
+# ─── Packages ────────────────────────────────────────────────────────────────
+
+load_brew() {
+  have brew && return 0
+  local brew
+  for brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$brew" ]]; then
+      eval "$("$brew" shellenv)"
+      return 0
+    fi
+  done
+  return 1
+}
+
+as_root() {
+  if [[ "$(id -u)" == 0 ]]; then
+    "$@"
+  elif headless || [[ ! -t 0 ]]; then
+    sudo -n "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+apt_get() {
+  as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get -y \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold "$@"
+}
+
+list_file() {
+  sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$1"
+}
+
+apt_packages() {
+  list_file "${PACKAGES}/bundle.linux" | awk '{ print $1 }'
+}
+
+install_packages() {
+  step "Packages"
+  if is_macos; then
+    if ! load_brew; then
+      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
+      load_brew || { err "Homebrew installed but is not on PATH"; return 1; }
+    fi
+    local file failed=0
+    while IFS= read -r file; do
+      brew bundle --file="$file" || failed=1
+    done < <(brewfiles)
+    return "$failed"
+  fi
+
+  if [[ "$(id -u)" != 0 ]] && ! sudo -n true 2>/dev/null && { headless || [[ ! -t 0 ]]; }; then
+    err "sudo needs a password; configure passwordless sudo or run dot from a terminal"
+    return 1
+  fi
+  # shellcheck disable=SC2046 # one package name per word
+  apt_get update && apt_get install --no-install-recommends $(apt_packages)
+}
+
+update_packages() {
+  if is_macos; then
+    load_brew && brew update || return 1
+    install_packages
+  else
+    install_packages || return 1
+    # shellcheck disable=SC2046
+    apt_get install --only-upgrade --no-install-recommends $(apt_packages)
+  fi
+}
+
+check_packages() {
+  if is_macos; then
+    load_brew || { warn "Homebrew is missing"; return 1; }
+    local file failed=0
+    while IFS= read -r file; do
+      brew bundle check --no-upgrade --file="$file" >/dev/null || { warn "$(basename "$file") has missing packages"; failed=1; }
+    done < <(brewfiles)
+    return "$failed"
+  fi
+  local pkg failed=0
+  for pkg in $(apt_packages); do
+    dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || { warn "apt package $pkg is missing"; failed=1; }
+  done
+  return "$failed"
+}
+
+# ─── Linux tools ─────────────────────────────────────────────────────────────
+# packages/install.linux lists tools apt lacks: `<command> <install command>`.
+# Setup runs an install command when <command> is not on PATH; update runs all.
+
+# install_release <latest-url> <asset-url> <binary>
+# <latest-url> must redirect to a URL ending in the release tag. {version}
+# (the tag without a leading v) and {arch} (amd64 or arm64) expand in
+# <asset-url> and <binary>. Extracts the .tar.gz asset and installs <binary>,
+# a path inside it, into ~/.local/bin.
+install_release() {
+  local latest="$1" url="$2" binary="$3" tag version arch tmp status=0
+  tag="$(curl -fsSI -o /dev/null -w '%{redirect_url}' "$latest")" || tag=""
+  tag="${tag%/}"
+  version="${tag##*/}"
+  version="${version#v}"
+  [[ -n "$version" ]] || { err "No release found at $latest"; return 1; }
+  case "$(uname -m)" in
+    x86_64 | amd64) arch=amd64 ;;
+    aarch64 | arm64) arch=arm64 ;;
+    *) err "Unsupported architecture: $(uname -m)"; return 1 ;;
+  esac
+  url="${url//'{version}'/$version}"
+  url="${url//'{arch}'/$arch}"
+  binary="${binary//'{version}'/$version}"
+  binary="${binary//'{arch}'/$arch}"
+
+  tmp="$(mktemp -d)"
+  mkdir -p "${HOME}/.local/bin"
+  if curl -fsSL "$url" | tar -xz -C "$tmp" &&
+    install -m 0755 "${tmp}/${binary}" "${HOME}/.local/bin/${binary##*/}"; then
+    ok "${binary##*/} $version"
+  else
+    err "Could not install ${binary##*/} from $url"
+    status=1
+  fi
+  rm -rf "$tmp"
+  return "$status"
+}
+
+install_linux_tools() {
+  local mode="${1:-missing}" name cmd failed=0
+  is_linux || return 0
+  step "Linux tools"
+  while read -r name cmd; do
+    if [[ "$mode" == missing ]] && have "$name"; then
+      ok "$name is installed"
+      continue
+    fi
+    (eval "$cmd") </dev/null || { err "$name failed to install"; failed=1; }
+  done < <(list_file "${PACKAGES}/install.linux")
+  return "$failed"
+}
+
+update_linux_tools() { install_linux_tools all; }
+
+check_linux_tools() {
+  is_linux || return 0
+  local name _ failed=0
+  while read -r name _; do
+    have "$name" || { warn "$name is not on PATH"; failed=1; }
+  done < <(list_file "${PACKAGES}/install.linux")
+  return "$failed"
+}
+
+# ─── Shell ───────────────────────────────────────────────────────────────────
+# macOS uses zsh with Oh My Zsh. Linux keeps bash and gets one line at the top
+# of ~/.bashrc and ~/.profile that loads ~/.config/dotfiles/env.sh (PATH). It
+# must come first because Ubuntu's ~/.bashrc returns early when not interactive.
+
+# shellcheck disable=SC2016 # expanded by the shell that reads the file
+SHELL_HOOK='if [ -f "$HOME/.config/dotfiles/env.sh" ]; then . "$HOME/.config/dotfiles/env.sh"; fi'
+
+install_shell() {
+  step "Shell"
+  if is_macos; then
+    [[ -d "${HOME}/.oh-my-zsh" ]] && { ok "Oh My Zsh is installed"; return 0; }
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended --keep-zshrc
+    return
+  fi
+  local file
+  for file in "${HOME}/.bashrc" "${HOME}/.profile"; do
+    grep -qF '.config/dotfiles/env.sh' "$file" 2>/dev/null && continue
+    { printf '%s\n' "$SHELL_HOOK"; cat "$file" 2>/dev/null || true; } >"${file}.dot-tmp"
+    cat "${file}.dot-tmp" >"$file" && rm -f "${file}.dot-tmp"
+  done
+  ok "~/.bashrc and ~/.profile load the dot PATH"
+}
+
+check_shell() {
+  if is_macos; then
+    [[ -d "${HOME}/.oh-my-zsh" ]] || { warn "Oh My Zsh is missing"; return 1; }
     return 0
   fi
+  grep -qF '.config/dotfiles/env.sh' "${HOME}/.bashrc" 2>/dev/null || { warn "~/.bashrc does not load the dot PATH"; return 1; }
+}
 
-  print_summary "Upgrade completed successfully; no action is required"
+# ─── Pi ──────────────────────────────────────────────────────────────────────
+# Pi runs on its own Node, pinned in ~/.config/pi-runtime/.tool-versions, so a
+# project's .tool-versions cannot swap it out. ~/.local/bin/pi starts it.
+
+pi_node_dir() {
+  (cd "${HOME_DIR}/.config/pi-runtime" && asdf where nodejs) 2>/dev/null
+}
+
+install_pi() {
+  step "Pi"
+  have asdf || { err "asdf is required to install Pi"; return 1; }
+  asdf plugin list 2>/dev/null | grep -qx nodejs || asdf plugin add nodejs || return 1
+  (cd "${HOME_DIR}/.config/pi-runtime" && asdf install nodejs) || return 1
+  local node_dir
+  node_dir="$(pi_node_dir)" || return 1
+  PATH="${node_dir}/bin:${PATH}" npm install -g --no-fund --no-audit "$PI_PACKAGE" || return 1
+  ok "Pi $("${HOME_DIR}/.local/bin/pi" --version 2>/dev/null)"
+}
+
+check_pi() {
+  "${HOME_DIR}/.local/bin/pi" --version >/dev/null 2>&1 || { warn "Pi is not installed; run: dot setup"; return 1; }
+}
+
+# Copy Pi's local config templates once. Pi owns these files afterwards.
+seed_pi_config() {
+  local dir="${HOME}/.pi/agent"
+  mkdir -p "$dir"
+  [[ -e "${dir}/settings.json" || -L "${dir}/settings.json" ]] || cp "${DOT_ROOT}/templates/pi/settings.json" "${dir}/settings.json"
+  [[ -e "${dir}/mcp.json" || -L "${dir}/mcp.json" ]] || (umask 077 && cp "${DOT_ROOT}/templates/pi/mcp.example.json" "${dir}/mcp.json")
+}
+
+# ─── Skills ──────────────────────────────────────────────────────────────────
+# Your own skills live in home/.agents/skills and are linked like any config.
+# Third-party skills are listed in home/.agents/.skill-lock.json and installed
+# by the skills CLI into ~/.agents/skills, for Pi and Claude Code.
+
+skills_cli() {
+  local node_dir
+  node_dir="$(pi_node_dir)" || { err "Pi's Node is missing; run: dot setup"; return 1; }
+  PATH="${node_dir}/bin:${PATH}" npx -y skills@latest "$@"
+}
+
+# Print "<name> <source url>" for each skill in the lock file.
+locked_skills() {
+  local node_dir
+  node_dir="$(pi_node_dir)" || return 1
+  "${node_dir}/bin/node" -e '
+    const lock = require(process.argv[1]).skills;
+    for (const [name, s] of Object.entries(lock)) console.log(name, s.sourceUrl || s.source);
+  ' "${HOME_DIR}/.agents/.skill-lock.json"
+}
+
+install_skills() {
+  step "Skills"
+  local skills name source failed=0
+  skills="$(locked_skills)" || { err "Could not read the skill lock file"; return 1; }
+  while read -r name source; do
+    if [[ -f "${HOME}/.agents/skills/${name}/SKILL.md" ]]; then
+      ok "$name"
+      continue
+    fi
+    skills_cli add "$source" --global --skill "$name" --agent "${SKILL_AGENTS[@]}" --yes </dev/null || failed=1
+  done <<<"$skills"
+  return "$failed"
+}
+
+update_skills() {
+  install_skills || return 1
+  skills_cli update --global --yes </dev/null
+}
+
+check_skills() {
+  local skills name _ failed=0
+  skills="$(locked_skills)" || { warn "Could not read the skill lock file"; return 1; }
+  while read -r name _; do
+    [[ -f "${HOME}/.agents/skills/${name}/SKILL.md" ]] || { warn "Skill $name is not installed"; failed=1; }
+  done <<<"$skills"
+  return "$failed"
+}
+
+# ─── Links ───────────────────────────────────────────────────────────────────
+# Stow links each file under home/ into $HOME. Anything already in the way is
+# moved to ~/.local/state/dotfiles/backups first.
+
+stow_ignores() {
+  printf '%s\n' '--ignore=\.DS_Store'
+  is_macos || printf '%s\n' '--ignore=^Library'
+}
+
+managed_files() {
+  local prune=()
+  is_macos || prune=(-path "${HOME_DIR}/Library" -prune -o)
+  find "$HOME_DIR" ${prune[@]+"${prune[@]}"} -type f ! -name .DS_Store -print
+}
+
+link_home() {
+  step "Links"
+  have stow || { err "GNU Stow is required; run: dot setup"; return 1; }
+  local source target backup=""
+  while IFS= read -r source; do
+    target="${HOME}/${source#"${HOME_DIR}"/}"
+    [[ "$target" -ef "$source" ]] && continue
+    [[ -e "$target" || -L "$target" ]] || continue
+    backup="${backup:-${HOME}/.local/state/dotfiles/backups/$(date +%Y%m%d-%H%M%S)}"
+    mkdir -p "$(dirname "${backup}/${target#"${HOME}"/}")"
+    mv "$target" "${backup}/${target#"${HOME}"/}"
+    warn "Moved ~/${target#"${HOME}"/} to $backup"
+  done < <(managed_files)
+
+  local ignores=()
+  while IFS= read -r source; do ignores+=("$source"); done < <(stow_ignores)
+  stow --restow --no-folding "${ignores[@]}" --dir "$DOT_ROOT" --target "$HOME" home || return 1
+
+  # Claude Code reads ~/.claude/skills; point it at your own skills too.
+  mkdir -p "${HOME}/.claude/skills"
+  for source in "${HOME_DIR}/.agents/skills"/*/; do
+    target="${HOME}/.claude/skills/$(basename "$source")"
+    [[ -e "$target" && ! -L "$target" ]] || ln -sfn "../../.agents/skills/$(basename "$source")" "$target"
+  done
+
+  seed_pi_config
+  mkdir -p "${HOME}/.local/bin"
+  ln -sfn "${DOT_ROOT}/dot" "${HOME}/.local/bin/dot"
+  ok "Home links point to $HOME_DIR"
+}
+
+check_links() {
+  local source target failed=0
+  while IFS= read -r source; do
+    target="${HOME}/${source#"${HOME_DIR}"/}"
+    [[ "$target" -ef "$source" ]] || { warn "~/${target#"${HOME}"/} is not linked"; failed=1; }
+  done < <(managed_files)
+  return "$failed"
+}
+
+configure_repo() {
+  git -C "$DOT_ROOT" config core.hooksPath .githooks
+}
+
+pull_repo() {
+  step "Repository"
+  if [[ -n "$(git -C "$DOT_ROOT" status --porcelain)" ]]; then
+    warn "Uncommitted changes; skipping git pull"
+  elif ! git -C "$DOT_ROOT" rev-parse '@{upstream}' >/dev/null 2>&1; then
+    warn "No upstream branch; skipping git pull"
+  else
+    git -C "$DOT_ROOT" pull --ff-only
+  fi
+}
+
+# ─── Commands ────────────────────────────────────────────────────────────────
+
+cmd_setup() {
+  if [[ $# -gt 0 ]] && ! is_macos; then
+    warn "Profiles only apply on macOS; ignoring '$1'"
+  elif [[ $# -gt 0 ]]; then
+    save_profile "$1" || return 1
+  fi
+  if is_macos; then
+    printf 'Profile: %s\n' "$(profile)"
+  fi
+  # Links first: Pi's runtime pin and the skill lock are read from home/.
+  run_all install_packages install_linux_tools install_shell link_home install_pi install_skills configure_repo
+  finish "Setup complete. Open a new shell, then run: dot check"
+}
+
+cmd_update() {
+  pull_repo || true
+  run_all update_packages update_linux_tools link_home install_pi update_skills
+  finish "Everything is up to date"
 }
 
 cmd_check() {
-  if ! require_no_args check "$@"; then
-    print_summary "Health checks did not start"
-    print_action_required "Run: dot check"
-    return 1
-  fi
-  if ! require_supported_platform; then
-    print_summary "Health checks did not start"
-    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
-    return 1
-  fi
-  info "Checking every step that dot setup installs"
-  run_doctor
-}
-
-cmd_apply() {
-  local target="${1:-}"
-  if [[ -z "$target" ]]; then
-    error "Usage: dot apply <home|macos|dock>"
-    print_summary "No configuration was applied"
-    print_action_required "Run: dot apply <home|macos|dock>"
-    return 1
-  fi
-  shift
-
-  case "$target" in
-    home)
-      local archive_legacy_skills=0
-      while (( $# > 0 )); do
-        case "$1" in
-          --archive-legacy-skills) archive_legacy_skills=1 ;;
-          *)
-            error "Unknown apply home option: $1"
-            print_summary "Managed home links were not changed"
-            print_action_required "Run: dot apply home [--archive-legacy-skills]"
-            return 1
-            ;;
-        esac
-        shift
-      done
-      info "Reconciling managed home links with conflict backups"
-      if ! stow_home "$archive_legacy_skills"; then
-        print_summary "Managed home links could not be applied"
-        print_action_required "Fix the error above, then retry: dot apply home"
-        return 1
-      fi
-      if ! apply_pi_settings; then
-        print_summary "Managed home links were applied; shared Pi settings were not"
-        print_action_required "Fix the error above, then retry: dot apply home"
-        return 1
-      fi
-      print_summary "Managed home links and shared Pi settings were applied successfully"
-      print_next_action "Run: dot check"
-      ;;
-    macos)
-      if ! require_no_args "apply macos" "$@"; then
-        print_summary "macOS preferences were not changed"
-        print_action_required "Run: dot apply macos"
-        return 1
-      fi
-      info "Applying opt-in macOS preferences"
-      if ! require_macos; then
-        print_summary "macOS preferences were not changed"
-        print_action_required "Run this command on macOS"
-        return 1
-      fi
-      if run_prefixed macOS bash "${DOT_ROOT}/scripts/macos.sh"; then
-        print_summary "macOS preferences were applied successfully"
-        print_next_action "Restart affected applications or log out if a setting has not refreshed"
-      else
-        print_summary "Some macOS preferences could not be applied"
-        print_action_required "Fix the error above, then retry: dot apply macos"
-        return 1
-      fi
-      ;;
-    dock)
-      if ! require_no_args "apply dock" "$@"; then
-        print_summary "Dock configuration was not changed"
-        print_action_required "Run: dot apply dock"
-        return 1
-      fi
-      info "Applying the opt-in Dock configuration"
-      if ! require_macos; then
-        print_summary "Dock configuration was not changed"
-        print_action_required "Run this command on macOS"
-        return 1
-      fi
-      if run_prefixed Dock bash "${DOT_ROOT}/scripts/dock.sh"; then
-        print_summary "Dock configuration was applied successfully; no action is required"
-      else
-        print_summary "Dock configuration could not be applied"
-        print_action_required "Fix the error above, then retry: dot apply dock"
-        return 1
-      fi
-      ;;
-    *)
-      error "Unknown apply target: $target"
-      print_summary "No configuration was applied"
-      print_action_required "Run: dot apply <home|macos|dock>"
-      return 1
-      ;;
-  esac
-}
-
-cmd_change_profile() {
-  local profile="$1"
-  if save_profile "$profile"; then
-    print_summary "Package profile changed to $profile"
-    print_action_required "Install the selected packages: dot upgrade"
-  fi
-}
-
-run_menu_command() {
-  if ! dispatch_command "$@"; then
-    printf '\nThe operation did not complete successfully.\n' >&2
-  fi
-}
-
-apply_menu() {
-  local choice
-  print_menu_heading 'Apply configuration'
-  print_menu_option 1 'Managed home links'
-  print_menu_option 2 'macOS preferences'
-  print_menu_option 3 'Dock configuration'
-  print_menu_option b 'Back'
-  printf '\n'
-  read_menu_choice choice || return 0
-
-  case "$choice" in
-    1) run_menu_command apply home ;;
-    2) run_menu_command apply macos ;;
-    3) run_menu_command apply dock ;;
-    b|B|'') return 0 ;;
-    *) warn "Invalid choice '$choice'; choose 1, 2, 3, or b" ;;
-  esac
-}
-
-profile_menu() {
-  local choice profile
-  print_menu_heading 'Change package profile'
-  print_menu_option 1 base
-  print_menu_option 2 personal
-  print_menu_option 3 work
-  print_menu_option b 'Back'
-  printf '\n'
-  read_menu_choice choice || return 0
-
-  case "$choice" in
-    1) profile=base ;;
-    2) profile=personal ;;
-    3) profile=work ;;
-    b|B|'') return 0 ;;
-    *) warn "Invalid choice '$choice'; choose 1, 2, 3, or b"; return 0 ;;
-  esac
-  cmd_change_profile "$profile"
-}
-
-interactive_menu() {
-  local choice profile setup_label='this machine'
-  if (( DOT_PLATFORM_BACKEND_LOADED == 1 )); then
-    setup_label="$(platform_label)"
-  fi
-
-  while true; do
-    profile="$(current_profile 2>/dev/null || printf 'unknown')"
-    styled_printf '1;31' '\nDot\n\n'
-    printf 'Current package profile: %s\n\n' "$profile"
-    print_menu_option 1 "Set up ${setup_label}"
-    print_menu_option 2 'Upgrade everything'
-    print_menu_option 3 'Check health'
-    print_menu_option 4 'Apply configuration'
-    print_menu_option 5 'Change package profile'
-    print_menu_option q 'Quit'
-    printf '\n'
-    read_menu_choice choice || return 0
-
-    case "$choice" in
-      1) run_menu_command setup ;;
-      2) run_menu_command upgrade ;;
-      3) run_menu_command check ;;
-      4) apply_menu ;;
-      5) profile_menu ;;
-      q|Q) return 0 ;;
-      *) warn "Invalid choice '$choice'; choose 1-5 or q" ;;
-    esac
+  local name fn failed=0
+  for name in packages:check_packages tools:check_linux_tools shell:check_shell \
+    links:check_links pi:check_pi skills:check_skills; do
+    fn="${name#*:}"
+    if "$fn"; then ok "${name%%:*}"; else failed=1; fi
   done
+  (( failed == 0 )) || { printf '\nRun: dot setup\n'; return 1; }
 }
 
-dispatch_command() {
-  local command="${1:-help}"
-  shift || true
+cmd_link() {
+  link_home
+}
 
-  case "$command" in
-    setup) cmd_setup "$@" ;;
-    upgrade) cmd_upgrade "$@" ;;
-    check) cmd_check "$@" ;;
-    skills) cmd_skills "$@" ;;
-    apply) cmd_apply "$@" ;;
-    help|-h|--help) print_help ;;
-    *)
-      error "Unknown command: $command"
-      print_summary "No operation was run"
-      print_action_required "Run: dot help"
-      return 1
-      ;;
-  esac
+macos_only() {
+  is_macos || { err "dot $1 only runs on macOS"; return 1; }
+}
+
+usage() {
+  cat <<'EOF'
+Usage: dot [--headless] <command>
+
+  setup [base|personal|work]  Install packages, tools, Pi, skills, and links.
+                              The profile (macOS) picks an extra Brewfile.
+  update                      Pull this repo, then upgrade everything.
+  check                       Report anything setup has not done.
+  link                        Link home/ into $HOME.
+  macos                       Apply macOS preferences (opt-in).
+  dock                        Set up the Dock (opt-in).
+
+--headless (or DOT_HEADLESS=1) never prompts: for agent boxes and SSH.
+EOF
 }
 
 main() {
-  while (( $# > 0 )); do
-    case "$1" in
-      --headless)
-        DOT_HEADLESS=1
-        shift
-        ;;
-      -h|--help) break ;;
-      -*)
-        error "Unknown global option: $1"
-        print_summary "No operation was run"
-        print_action_required "Run: dot help"
-        return 1
-        ;;
-      *) break ;;
-    esac
-  done
-
-  if ! dot_configure_headless; then
-    print_summary "No operation was run"
-    print_action_required "Set DOT_HEADLESS=1 for headless mode, or unset it"
-    return 1
+  if [[ "${1:-}" == --headless ]]; then
+    DOT_HEADLESS=1
+    shift
   fi
-
-  if (( $# == 0 )); then
-    if dot_interactive; then
-      interactive_menu
-    else
-      print_help
-    fi
-    return
-  fi
-
-  dispatch_command "$@"
+  configure_headless
+  local command="${1:-help}"
+  shift || true
+  case "$command" in
+    setup) cmd_setup "$@" ;;
+    update) cmd_update ;;
+    check) cmd_check ;;
+    link) cmd_link ;;
+    macos) macos_only macos && bash "${DOT_ROOT}/scripts/macos.sh" ;;
+    dock) macos_only dock && bash "${DOT_ROOT}/scripts/dock.sh" ;;
+    help | -h | --help) usage ;;
+    *) err "Unknown command: $command"; usage >&2; return 1 ;;
+  esac
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  main "$@"
-fi
+main "$@"

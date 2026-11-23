@@ -1,0 +1,10 @@
+# Linux tools that apt lacks or ships too old, one per line:
+#   <command>  <install command>
+# dot setup runs the install command when <command> is not on PATH; dot update
+# runs every line again to pick up new releases. install_release is defined in
+# dot: install_release <latest-release-url> <asset-url> <binary-in-archive>.
+
+asdf    install_release https://github.com/asdf-vm/asdf/releases/latest https://github.com/asdf-vm/asdf/releases/download/v{version}/asdf-v{version}-linux-{arch}.tar.gz asdf
+gh      install_release https://github.com/cli/cli/releases/latest https://github.com/cli/cli/releases/download/v{version}/gh_{version}_linux_{arch}.tar.gz gh_{version}_linux_{arch}/bin/gh
+glab    install_release https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest https://gitlab.com/gitlab-org/cli/-/releases/v{version}/downloads/glab_{version}_linux_{arch}.tar.gz bin/glab
+claude  curl -fsSL https://claude.ai/install.sh | bash

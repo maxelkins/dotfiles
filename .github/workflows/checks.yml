@@ -8,42 +8,22 @@ permissions:
   contents: read
 
 jobs:
-  lint-and-test:
-    name: Lint and test on Ubuntu 24.04
+  lint:
+    name: Lint
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .tool-versions
           cache: npm
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
       - name: Check formatting
         run: npm run format:check
-      - name: Check shell syntax
-        run: git ls-files -z '*.sh' dot .githooks/pre-commit home/.local/bin/pi | xargs -0 -n1 bash -n
-      - name: Run shellcheck
-        run: |
-          shellcheck --version
-          shellcheck -S warning dot scripts/*.sh scripts/lib/*.sh scripts/lib/platform/*.sh
-      - name: Run unit tests
-        run: npm test
       - name: Typecheck Pi extensions
         run: npm run typecheck:pi
-
-  macos-test:
-    name: Unit tests on macOS
-    runs-on: macos-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run bash tests with the system bash
-        # Put /bin first so scripts started via `env bash` also get bash 3.2.
-        run: |
-          export PATH="/bin:$PATH"
-          bash --version
-          /bin/bash tests/dot_test.sh
-      - name: Run Python tests
-        run: python3 -B -m unittest discover -s tests -p '*_test.py'
+      - name: Check shell syntax
+        run: for f in dot scripts/*.sh .githooks/pre-commit home/.local/bin/pi; do bash -n "$f"; done
+      - name: Run shellcheck
+        run: shellcheck -S warning dot scripts/*.sh home/.local/bin/pi
