@@ -7,6 +7,7 @@ This repository manages a home directory with GNU Stow on macOS and on Debian/Ub
 - Treat `home/` as a mirror of `$HOME`. For example, edit `home/.config/starship.toml` for `~/.config/starship.toml`.
 - Keep machine state, credentials, sessions, caches, and generated files outside `home/`. Add a narrow `.gitignore` rule when a managed tool writes runtime files beside tracked configuration.
 - Preserve user changes in `home/.agents/.skill-lock.json`. Skill installers may update it outside an agent task.
+- Add or update shared skills only under `home/.agents/skills/` (or with `dot skills update`), then run `dot apply home`. Never replace the managed links in `~/.agents/skills` or `~/.claude/skills` with copied directories; `dot check` flags copies under `~/.agents/skills` as links that need repair.
 - Keep `home/.pi/agent/extensions/herdr-agent-state.ts` tracked but generated. Update it through Herdr's integration installer rather than editing it by hand.
 - Put shared Homebrew declarations in `packages/bundle`, personal declarations in `packages/bundle.personal`, and work declarations in `packages/bundle.work`.
 - Put Linux apt declarations in `packages/bundle.linux`. Put Linux release binaries, including asdf and any tool whose apt version is too old, in `packages/extras.linux` as one block per tool with an exact version and SHA-256 hashes; add a block rather than a new installer. Never pin asdf in the repo-root `.tool-versions`.
