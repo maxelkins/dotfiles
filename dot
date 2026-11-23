@@ -115,7 +115,10 @@ cmd_setup() {
   fi
 
   print_summary "Setup completed successfully"
-  print_next_action "Restart the terminal, then run: dot check"
+  print_action_required \
+    "Restart your shell so it picks up the new PATH (node, npm, Pi extensions):" \
+    "  exec ${SHELL:-bash} -l    # or open a new terminal" \
+    "Then run: dot check"
 }
 
 cmd_upgrade() {
