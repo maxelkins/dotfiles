@@ -1,6 +1,6 @@
 # Repository instructions
 
-This repository manages a home directory with GNU Stow. macOS is the supported platform.
+This repository manages a home directory with GNU Stow on macOS and on Debian/Ubuntu Linux agent boxes.
 
 ## Working rules
 

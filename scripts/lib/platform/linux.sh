@@ -47,7 +47,7 @@ linux_as_root() {
 }
 
 linux_apt_get() {
-  linux_as_root env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+  linux_as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get "$@"
 }
 
 platform_prepare() {
@@ -332,9 +332,8 @@ platform_install_shell() {
   skipped "Oh My Zsh is not installed on Linux; bash uses the dot PATH hook"
 }
 
-# CONTRACT: stdout carries only the action line for the doctor; status
-# messages go to stderr. On failure: warn, print one action line, return 1.
-# The integrator may adjust this once the doctor contract is settled.
+# Doctor contract (scripts/lib/platform.sh): warn and return 1 when unhealthy;
+# doctor adds the "dot setup" action itself.
 platform_check_shell() {
   local file hook_missing=0
   for file in "${HOME}/.bashrc" "${HOME}/.profile"; do
@@ -343,9 +342,6 @@ platform_check_shell() {
       hook_missing=1
     fi
   done
-  if (( hook_missing )); then
-    printf '%s\n' 'Install the shell PATH hook: dot setup'
-    return 1
-  fi
-  success "Shell PATH hook is installed" >&2
+  (( hook_missing == 0 )) || return 1
+  success "Shell PATH hook is installed"
 }
