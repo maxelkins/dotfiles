@@ -147,7 +147,10 @@ install_packages() {
   step "Packages"
   if is_macos; then
     if ! load_brew; then
-      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || return 1
+      local script
+      script="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" ||
+        { err "Could not download the Homebrew installer"; return 1; }
+      NONINTERACTIVE=1 /bin/bash -c "$script" || return 1
       load_brew || { err "Homebrew installed but is not on PATH"; return 1; }
     fi
     local file failed=0
@@ -268,7 +271,10 @@ install_shell() {
   step "Shell"
   if is_macos; then
     [[ -d "${HOME}/.oh-my-zsh" ]] && { ok "Oh My Zsh is installed"; return 0; }
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" -- --unattended --keep-zshrc
+    local script
+    script="$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" ||
+      { err "Could not download Oh My Zsh"; return 1; }
+    sh -c "$script" -- --unattended --keep-zshrc
     return
   fi
   local file
@@ -314,9 +320,13 @@ check_pi() {
 # Copy Pi's local config templates once. Pi owns these files afterwards.
 seed_pi_config() {
   local dir="${HOME}/.pi/agent"
-  mkdir -p "$dir"
-  [[ -e "${dir}/settings.json" || -L "${dir}/settings.json" ]] || cp "${DOT_ROOT}/templates/pi/settings.json" "${dir}/settings.json"
-  [[ -e "${dir}/mcp.json" || -L "${dir}/mcp.json" ]] || (umask 077 && cp "${DOT_ROOT}/templates/pi/mcp.example.json" "${dir}/mcp.json")
+  mkdir -p "$dir" || return 1
+  if [[ ! -e "${dir}/settings.json" && ! -L "${dir}/settings.json" ]]; then
+    cp "${DOT_ROOT}/templates/pi/settings.json" "${dir}/settings.json" || return 1
+  fi
+  if [[ ! -e "${dir}/mcp.json" && ! -L "${dir}/mcp.json" ]]; then
+    (umask 077 && cp "${DOT_ROOT}/templates/pi/mcp.example.json" "${dir}/mcp.json") || return 1
+  fi
 }
 
 # ─── Skills ──────────────────────────────────────────────────────────────────
@@ -378,23 +388,40 @@ stow_ignores() {
 }
 
 managed_files() {
+  # Files and tracked symlinks (e.g. home/.pi/agent/AGENTS.md).
   local prune=()
   is_macos || prune=(-path "${HOME_DIR}/Library" -prune -o)
-  find "$HOME_DIR" ${prune[@]+"${prune[@]}"} -type f ! -name .DS_Store -print
+  find "$HOME_DIR" ${prune[@]+"${prune[@]}"} \( -type f -o -type l \) ! -name .DS_Store -print
+}
+
+# Move a path under $HOME out of the way, into the backup folder.
+backup_path() {
+  local path="$1"
+  DOT_BACKUP_DIR="${DOT_BACKUP_DIR:-${HOME}/.local/state/dotfiles/backups/$(date +%Y%m%d-%H%M%S)}"
+  mkdir -p "$(dirname "${DOT_BACKUP_DIR}/${path#"${HOME}"/}")" || return 1
+  mv "$path" "${DOT_BACKUP_DIR}/${path#"${HOME}"/}" || return 1
+  warn "Moved ~/${path#"${HOME}"/} to $DOT_BACKUP_DIR"
 }
 
 link_home() {
   step "Links"
   have stow || { err "GNU Stow is required; run: dot setup"; return 1; }
-  local source target backup=""
+  local source target ancestor
   while IFS= read -r source; do
     target="${HOME}/${source#"${HOME_DIR}"/}"
-    [[ "$target" -ef "$source" ]] && continue
-    [[ -e "$target" || -L "$target" ]] || continue
-    backup="${backup:-${HOME}/.local/state/dotfiles/backups/$(date +%Y%m%d-%H%M%S)}"
-    mkdir -p "$(dirname "${backup}/${target#"${HOME}"/}")"
-    mv "$target" "${backup}/${target#"${HOME}"/}"
-    warn "Moved ~/${target#"${HOME}"/} to $backup"
+    # A file or symlink in the way of a managed path.
+    if [[ ! "$target" -ef "$source" ]] && { [[ -e "$target" ]] || [[ -L "$target" ]]; }; then
+      backup_path "$target" || return 1
+    fi
+    # A file in the way of a managed directory: Stow cannot traverse it, so
+    # walk every ancestor up to $HOME and back the conflict up once.
+    ancestor="$(dirname "$target")"
+    while [[ "$ancestor" != "$HOME" && "$ancestor" != "/" ]]; do
+      if { [[ -e "$ancestor" ]] || [[ -L "$ancestor" ]]; } && [[ ! -d "$ancestor" ]]; then
+        backup_path "$ancestor" || return 1
+      fi
+      ancestor="$(dirname "$ancestor")"
+    done
   done < <(managed_files)
 
   local ignores=()
@@ -408,7 +435,7 @@ link_home() {
     [[ -e "$target" && ! -L "$target" ]] || ln -sfn "../../.agents/skills/$(basename "$source")" "$target"
   done
 
-  seed_pi_config
+  seed_pi_config || return 1
   mkdir -p "${HOME}/.local/bin"
   ln -sfn "${DOT_ROOT}/dot" "${HOME}/.local/bin/dot"
   ok "Home links point to $HOME_DIR"
@@ -455,8 +482,9 @@ cmd_setup() {
 }
 
 cmd_update() {
-  pull_repo || true
-  run_all update_packages update_linux_tools link_home install_pi update_skills
+  # pull_repo returns success for the intentional skips (dirty tree, no
+  # upstream); a real pull failure is kept in the final status.
+  run_all pull_repo update_packages update_linux_tools link_home install_pi update_skills
   finish "Everything is up to date"
 }
 
