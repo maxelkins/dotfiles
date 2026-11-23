@@ -15,8 +15,10 @@ export DOT_ROOT DOT_HOME_DIR
 
 # shellcheck source=scripts/lib/common.sh
 source "${DOT_ROOT}/scripts/lib/common.sh"
-# shellcheck source=scripts/lib/brew.sh
-source "${DOT_ROOT}/scripts/lib/brew.sh"
+# shellcheck source=scripts/lib/profile.sh
+source "${DOT_ROOT}/scripts/lib/profile.sh"
+# shellcheck source=scripts/lib/platform.sh
+source "${DOT_ROOT}/scripts/lib/platform.sh"
 # shellcheck source=scripts/lib/stow.sh
 source "${DOT_ROOT}/scripts/lib/stow.sh"
 # shellcheck source=scripts/lib/pi.sh
@@ -31,7 +33,7 @@ print_help() {
 Usage: dot [command]
 
 Commands:
-  setup [profile]         Set up this Mac using base, personal, or work packages
+  setup [profile]         Set up this machine using base, personal, or work packages
   upgrade                 Upgrade everything managed by this repository
   check                   Run read-only health checks
   skills update           Update vendored skills and reconcile home links
@@ -78,41 +80,34 @@ cmd_setup() {
   done
 
   info "Setting up packages, Pi, shell tools, managed links, and repository hooks"
-  if ! require_macos; then
+  if ! require_supported_platform; then
     print_summary "Setup failed before changes were made"
-    print_action_required "Run this command on macOS"
+    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
     return 1
   fi
 
-  local profile
-  if ! profile="$(choose_profile_for_setup "$requested_profile")"; then
-    print_summary "Setup failed because the package profile is invalid"
-    print_action_required "Run: dot setup [base|personal|work]"
-    return 1
+  local profile=""
+  if platform_supports_profiles; then
+    if ! profile="$(choose_profile_for_setup "$requested_profile")"; then
+      print_summary "Setup failed because the package profile is invalid"
+      print_action_required "Run: dot setup [base|personal|work]"
+      return 1
+    fi
+    save_profile "$profile"
+  elif [[ -n "$requested_profile" ]]; then
+    warn "Package profiles do not apply on $(platform_label); ignoring '$requested_profile'"
   fi
-  save_profile "$profile"
 
-  local homebrew_ready=1
-  if ! install_homebrew; then
-    homebrew_ready=0
+  # platform_prepare reports what it skips when it fails.
+  if platform_prepare; then
+    platform_install_packages || ((failures += 1))
+  else
     ((failures += 1))
   fi
 
-  if (( homebrew_ready == 1 )); then
-    install_packages || ((failures += 1))
-  else
-    skipped "Package installation requires Homebrew"
-  fi
-
+  platform_install_runtime_manager || ((failures += 1))
   install_pi || ((failures += 1))
-
-  info "Installing shell dependencies"
-  if run_prefixed Shell bash "${DOT_ROOT}/scripts/ohmyzsh.sh"; then
-    success "Shell dependencies are installed"
-  else
-    error "Shell dependency installation failed"
-    ((failures += 1))
-  fi
+  platform_install_shell || ((failures += 1))
 
   stow_home "$archive_legacy_skills" || ((failures += 1))
   link_dot_command || ((failures += 1))
@@ -120,7 +115,7 @@ cmd_setup() {
 
   if (( failures > 0 )); then
     print_summary "Setup completed with $failures failed stage(s)"
-    print_action_required "Fix the errors above, then retry: dot setup $profile"
+    print_action_required "Fix the errors above, then retry: dot setup${profile:+ $profile}"
     return 1
   fi
 
@@ -132,6 +127,11 @@ cmd_upgrade() {
   if ! require_no_args upgrade "$@"; then
     print_summary "Upgrade did not start"
     print_action_required "Run: dot upgrade"
+    return 1
+  fi
+  if ! require_supported_platform; then
+    print_summary "Upgrade did not start"
+    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
     return 1
   fi
   local failures=0
@@ -158,7 +158,8 @@ cmd_upgrade() {
     fi
   fi
 
-  update_packages || ((failures += 1))
+  platform_update_packages || ((failures += 1))
+  platform_install_runtime_manager || ((failures += 1))
   install_pi || ((failures += 1))
   stow_home || ((failures += 1))
   configure_git_hooks || ((failures += 1))
@@ -189,6 +190,11 @@ cmd_check() {
   if ! require_no_args check "$@"; then
     print_summary "Health checks did not start"
     print_action_required "Run: dot check"
+    return 1
+  fi
+  if ! require_supported_platform; then
+    print_summary "Health checks did not start"
+    print_action_required "Run this command on a supported platform; backends live in scripts/lib/platform/"
     return 1
   fi
   info "Checking tools, packages, managed links, Pi, and shell dependencies"
@@ -334,13 +340,16 @@ profile_menu() {
 }
 
 interactive_menu() {
-  local choice profile
+  local choice profile setup_label='this machine'
+  if (( DOT_PLATFORM_BACKEND_LOADED == 1 )); then
+    setup_label="$(platform_label)"
+  fi
 
   while true; do
     profile="$(current_profile 2>/dev/null || printf 'unknown')"
     styled_printf '1;31' '\nDot\n\n'
     printf 'Current package profile: %s\n\n' "$profile"
-    print_menu_option 1 'Set up this Mac'
+    print_menu_option 1 "Set up ${setup_label}"
     print_menu_option 2 'Upgrade everything'
     print_menu_option 3 'Check health'
     print_menu_option 4 'Apply configuration'

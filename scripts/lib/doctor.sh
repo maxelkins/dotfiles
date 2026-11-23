@@ -9,7 +9,8 @@ run_doctor() {
   local actions=()
 
   info "Checking required tools"
-  for tool in brew stow git zsh; do
+  while IFS= read -r tool; do
+    [[ -n "$tool" ]] || continue
     if command_exists "$tool"; then
       success "$tool is available"
     else
@@ -17,7 +18,7 @@ run_doctor() {
       ((failures += 1))
       actions+=("Install missing tools: dot setup")
     fi
-  done
+  done < <(platform_required_tools)
 
   info "Checking managed home files"
   while IFS= read -r source; do
@@ -37,7 +38,7 @@ run_doctor() {
     else
       ((healthy_links += 1))
     fi
-  done < <(find "$DOT_HOME_DIR" -type f ! -name '.DS_Store' | LC_ALL=C sort)
+  done < <(managed_home_files)
 
   if (( checked == 0 )); then
     warn "No managed files were found"
@@ -50,9 +51,13 @@ run_doctor() {
     actions+=("Repair managed links: dot apply home")
   fi
 
-  if command_exists brew; then
-    info "Checking the $(current_profile) package profile"
-    if package_output="$(check_packages 2>&1)"; then
+  if platform_packages_checkable; then
+    if platform_supports_profiles; then
+      info "Checking the $(current_profile) package profile"
+    else
+      info "Checking declared packages"
+    fi
+    if package_output="$(platform_check_packages 2>&1)"; then
       success "Declared packages are installed"
     else
       printf '%s\n' "$package_output" >&2
@@ -72,12 +77,9 @@ run_doctor() {
   fi
 
   info "Checking the shell framework"
-  if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
-    warn "Oh My Zsh is missing"
+  if ! platform_check_shell; then
     ((failures += 1))
     actions+=("Install shell dependencies: dot setup")
-  else
-    success "Oh My Zsh is installed"
   fi
 
   if (( failures > 0 )); then

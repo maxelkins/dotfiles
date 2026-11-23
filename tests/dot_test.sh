@@ -273,6 +273,92 @@ FIXTURE="$fixture" bash -c '
 pass 'local MCP config is seeded without replacing existing files or symlinks'
 rm -rf "$fixture"
 
+unsupported_home="$(mktemp -d)"
+hooks_before="$(git -C "$ROOT" config core.hooksPath || true)"
+set +e
+unsupported_output="$(HOME="$unsupported_home" DOT_PLATFORM=unsupported "$ROOT/dot" setup work 2>&1)"
+unsupported_status=$?
+set -e
+hooks_after="$(git -C "$ROOT" config core.hooksPath || true)"
+if (( unsupported_status != 0 )) && [[ -z "$(find "$unsupported_home" -mindepth 1 -print -quit)" && "$hooks_before" == "$hooks_after" ]]; then
+  pass 'setup on an unsupported platform fails without changes'
+else
+  printf '%s\n' "$unsupported_output" >&2
+  fail_test 'setup on an unsupported platform fails without changes'
+fi
+assert_contains "$unsupported_output" 'unsupported platform' 'setup names the unsupported platform'
+assert_contains "$unsupported_output" 'Setup failed before changes were made' 'unsupported setup reports that nothing changed'
+for command in check upgrade; do
+  set +e
+  unsupported_output="$(HOME="$unsupported_home" DOT_PLATFORM=missing-backend "$ROOT/dot" "$command" 2>&1)"
+  unsupported_status=$?
+  set -e
+  if (( unsupported_status != 0 )) && [[ "$unsupported_output" == *'unsupported platform: missing-backend'* ]]; then
+    pass "$command fails cleanly without a platform backend"
+  else
+    printf '%s\n' "$unsupported_output" >&2
+    fail_test "$command fails cleanly without a platform backend"
+  fi
+done
+unsupported_menu="$(HOME="$unsupported_home" DOT_PLATFORM=unsupported bash -c 'source "$1/dot"; interactive_menu' _ "$ROOT" <<< 'q' 2>&1)"
+assert_contains "$unsupported_menu" '[1] Set up this machine' 'menu uses a generic label without a platform backend'
+rm -rf "$unsupported_home"
+
+platform_name="$(DOT_PLATFORM=linux bash -c 'DOT_ROOT="$1"; source "$1/scripts/lib/common.sh"; source "$1/scripts/lib/platform.sh"; dot_platform' _ "$ROOT")"
+if [[ "$platform_name" == linux ]]; then
+  pass 'DOT_PLATFORM overrides platform detection'
+else
+  fail_test 'DOT_PLATFORM overrides platform detection'
+fi
+
+fixture="$(mktemp -d)"
+mkdir -p "$fixture/repo/home/Library/App" "$fixture/repo/home/.config/Library" "$fixture/repo/templates/pi" "$fixture/home"
+printf 'mac only\n' > "$fixture/repo/home/Library/App/config"
+printf 'nested\n' > "$fixture/repo/home/.config/Library/config"
+printf '{}\n' > "$fixture/repo/templates/pi/mcp.example.json"
+set +e
+exclude_output="$(FIXTURE="$fixture" bash -c '
+  set -euo pipefail
+  DOT_ROOT="$FIXTURE/repo"
+  DOT_HOME_DIR="$DOT_ROOT/home"
+  HOME="$FIXTURE/home"
+  DOT_BACKUP_ROOT="$FIXTURE/backups"
+  source "$1/scripts/lib/common.sh"
+  source "$1/scripts/lib/profile.sh"
+  source "$1/scripts/lib/stow.sh"
+  source "$1/scripts/lib/doctor.sh"
+  platform_home_excludes() { printf "Library\n"; }
+  platform_required_tools() { printf "git\n"; }
+  platform_supports_profiles() { return 0; }
+  platform_packages_checkable() { return 1; }
+  platform_check_shell() { success "shell ok"; }
+  check_pi_install() { return 0; }
+  pi_version() { printf "test\n"; }
+  pi_node_version() { printf "test\n"; }
+
+  test "$(managed_home_files)" = "$DOT_HOME_DIR/.config/Library/config"
+  prepare_managed_directories
+  test ! -e "$HOME/Library"
+  test -d "$HOME/.config/Library"
+  if command -v stow >/dev/null 2>&1; then
+    stow_home >/dev/null 2>&1
+    test ! -e "$HOME/Library"
+    test "$HOME/.config/Library/config" -ef "$DOT_HOME_DIR/.config/Library/config"
+  else
+    ln -s "$DOT_HOME_DIR/.config/Library/config" "$HOME/.config/Library/config"
+  fi
+  run_doctor
+' _ "$ROOT" 2>&1)"
+exclude_status=$?
+set -e
+if (( exclude_status == 0 )) && [[ "$exclude_output" == *'1 managed links are correct'* ]]; then
+  pass 'stow and doctor skip only top-level platform_home_excludes'
+else
+  printf '%s\n' "$exclude_output" >&2
+  fail_test 'stow and doctor skip only top-level platform_home_excludes'
+fi
+rm -rf "$fixture"
+
 if (( failures > 0 )); then
   printf '%s test(s) failed\n' "$failures" >&2
   exit 1

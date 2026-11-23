@@ -1,6 +1,6 @@
 # Repository instructions
 
-This repository manages a macOS home directory with GNU Stow.
+This repository manages a home directory with GNU Stow. macOS is the supported platform.
 
 ## Working rules
 
@@ -12,6 +12,7 @@ This repository manages a macOS home directory with GNU Stow.
 - Record any intentional third-party Homebrew trust at formula scope in `packages/trusted-formulae`.
 - Treat `~/.config/mac-setup/profile` as local machine state. Package commands read it to select one optional bundle.
 - Keep `dot` limited to command dispatch. Put reusable behavior in `scripts/lib/` and explicit macOS mutations in `scripts/`.
+- Put platform-specific behavior in `scripts/lib/platform/<os>.sh` behind the interface documented in `scripts/lib/platform.sh`. Commands call `platform_*` functions instead of checking the OS.
 - Use `dot apply home` for managed links. Its preflight backs up conflicts before GNU Stow runs.
 - Keep `dot apply macos` and `dot apply dock` opt-in. They change host state.
 
@@ -24,5 +25,5 @@ This repository manages a macOS home directory with GNU Stow.
 After shell or layout changes, run:
 
 ```sh
-bash -n dot scripts/*.sh scripts/lib/*.sh
+bash -n dot scripts/*.sh scripts/lib/*.sh scripts/lib/platform/*.sh
 ```
