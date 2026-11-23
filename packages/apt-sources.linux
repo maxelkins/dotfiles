@@ -1,0 +1,21 @@
+# Third-party apt repositories for packages in packages/bundle.linux.
+# Added by: dot setup and dot upgrade, before any bundle package is installed.
+#
+# One block per repository. The block name names the files dot owns:
+# /etc/apt/keyrings/<name>.asc and /etc/apt/sources.list.d/<name>.list.
+#
+#   [name]
+#   key         = <https URL>    ASCII-armored signing key.
+#   fingerprint = <40 hex>       Full primary-key fingerprint, uppercase. dot
+#                                refuses a key file that holds anything else.
+#   source      = <uri> <suite> [components]
+#                                The rest of the deb line after signed-by.
+
+# Claude Code CLI (Anthropic). Fingerprint from the "Binary integrity" section
+# of https://code.claude.com/docs/en/setup. `stable` runs about a week behind
+# and skips releases with major regressions; `latest` gets every release:
+#   https://downloads.claude.ai/claude-code/apt/latest latest main
+[claude-code]
+key         = https://downloads.claude.ai/keys/claude-code.asc
+fingerprint = 31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE
+source      = https://downloads.claude.ai/claude-code/apt/stable stable main

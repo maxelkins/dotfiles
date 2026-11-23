@@ -30,6 +30,10 @@ linux_bundle_file() {
   printf '%s/packages/bundle.linux\n' "$DOT_ROOT"
 }
 
+linux_apt_sources_file() {
+  printf '%s/packages/apt-sources.linux\n' "$DOT_ROOT"
+}
+
 linux_extras_file() {
   printf '%s/packages/extras.linux\n' "$DOT_ROOT"
 }
@@ -151,6 +155,7 @@ linux_install_missing() {
 }
 
 platform_install_packages() {
+  linux_install_apt_sources || return 1
   info "Installing Linux packages from packages/bundle.linux"
   linux_install_missing
 }
@@ -158,6 +163,7 @@ platform_install_packages() {
 platform_update_packages() {
   local packages=() pkg list
 
+  linux_install_apt_sources || return 1
   info "Updating Linux packages from packages/bundle.linux"
   run_prefixed apt linux_apt_get update || { error "apt-get update failed"; return 1; }
   linux_install_missing --skip-update || return 1
@@ -175,10 +181,12 @@ platform_update_packages() {
   success "Bundle packages are up to date"
 }
 
-# Read-only: non-zero, listing each missing apt package and each missing or
-# outdated release binary from packages/extras.linux.
+# Read-only: non-zero, listing each missing or stale apt repository, each
+# missing apt package, and each missing or outdated release binary from
+# packages/extras.linux.
 platform_check_packages() {
   local missing=() pkg failed=0
+  linux_check_apt_sources || failed=1
   if ! command_exists dpkg-query; then
     error "dpkg-query is missing; cannot check apt packages"
     failed=1
@@ -194,34 +202,30 @@ platform_check_packages() {
   return "$failed"
 }
 
-# Release binaries from packages/extras.linux (format documented in that file).
+# Block tables: packages/apt-sources.linux and packages/extras.linux share an
+# INI-like format of `[name]` headers followed by `key = value` lines.
 
-linux_extras_bin_dir() {
-  printf '%s/.local/bin\n' "$HOME"
-}
-
-# Print the tool names in packages/extras.linux, one per line.
-linux_extras_names() {
-  local file names name
-  file="$(linux_extras_file)"
+# Print the block names in a table, one per line.
+linux_block_names() {
+  local file="$1" names name
   if [[ ! -f "$file" ]]; then
-    error "Release binary table is missing: $file"
+    error "Table is missing: $file"
     return 1
   fi
   names="$(awk '/^[[:space:]]*\[/ { line = $0; gsub(/[][[:space:]]/, "", line); print line }' "$file")"
   while IFS= read -r name; do
     [[ -n "$name" ]] || continue
     if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
-      error "Invalid tool name '[$name]' in $file"
+      error "Invalid block name '[$name]' in $file"
       return 1
     fi
     printf '%s\n' "$name"
   done <<<"$names"
 }
 
-# Print the raw value of a key in a tool's block; fail when it is absent.
-linux_extra_raw() {
-  awk -v name="$1" -v key="$2" '
+# Print the raw value of a key in a named block; fail when it is absent.
+linux_block_value() {
+  awk -v name="$2" -v key="$3" '
     /^[[:space:]]*(#|$)/ { next }
     /^[[:space:]]*\[/ { line = $0; gsub(/[][[:space:]]/, "", line); in_block = (line == name); next }
     in_block {
@@ -233,7 +237,171 @@ linux_extra_raw() {
       if (k == key) { print v; found = 1; exit }
     }
     END { exit !found }
-  ' "$(linux_extras_file)"
+  ' "$1"
+}
+
+# Third-party apt repositories from packages/apt-sources.linux (format
+# documented in that file). Each gets a keyring and a list file named after
+# its block, so dot can tell which files it owns.
+
+linux_apt_keyring() {
+  printf '/etc/apt/keyrings/%s.asc\n' "$1"
+}
+
+linux_apt_list() {
+  printf '/etc/apt/sources.list.d/%s.list\n' "$1"
+}
+
+# Print a validated field of a repository block.
+linux_apt_source_field() {
+  local name="$1" key="$2" file value
+  file="$(linux_apt_sources_file)"
+  if ! value="$(linux_block_value "$file" "$name" "$key")" || [[ -z "$value" ]]; then
+    error "[$name] in $file has no '$key' value"
+    return 1
+  fi
+  case "$key" in
+    key)
+      if [[ ! "$value" =~ ^https://[^[:space:]]+$ ]]; then
+        error "[$name] key must be an https URL: $value"
+        return 1
+      fi
+      ;;
+    fingerprint)
+      if [[ ! "$value" =~ ^[0-9A-F]{40}$ ]]; then
+        error "[$name] fingerprint must be 40 uppercase hex digits: $value"
+        return 1
+      fi
+      ;;
+    source)
+      if [[ ! "$value" =~ ^https://[^[:space:]]+([[:space:]]+[^[:space:]]+)+$ ]]; then
+        error "[$name] source must be '<https uri> <suite> [components]': $value"
+        return 1
+      fi
+      ;;
+  esac
+  printf '%s\n' "$value"
+}
+
+# Print the primary-key fingerprints in a key file, one per line. Uses a
+# throwaway GnuPG home so nothing touches ~/.gnupg.
+linux_key_fingerprints() (
+  local home
+  home="$(mktemp -d)" || exit 1
+  # shellcheck disable=SC2064 # expand now; home is local to this subshell
+  trap "rm -rf '$home'" EXIT
+  gpg --homedir "$home" --batch --show-keys --with-colons "$1" 2>/dev/null |
+    awk -F: '$1 == "pub" { want = 1; next } want && $1 == "fpr" { print $10; want = 0 }'
+)
+
+linux_apt_list_line() {
+  printf 'deb [signed-by=%s] %s\n' "$(linux_apt_keyring "$1")" "$2"
+}
+
+# True when the keyring holds exactly the pinned key and the list file matches.
+linux_apt_source_current() {
+  local name="$1" fingerprint source keyring list
+  fingerprint="$(linux_apt_source_field "$name" fingerprint)" || return 1
+  source="$(linux_apt_source_field "$name" source)" || return 1
+  keyring="$(linux_apt_keyring "$name")"
+  list="$(linux_apt_list "$name")"
+  [[ -f "$keyring" && -f "$list" ]] || return 1
+  [[ "$(linux_key_fingerprints "$keyring")" == "$fingerprint" ]] || return 1
+  [[ "$(<"$list")" == "$(linux_apt_list_line "$name" "$source")" ]]
+}
+
+# A fresh box may lack curl or gpg, which adding a repository needs before
+# the bundle can install them.
+linux_ensure_source_tools() {
+  local missing=()
+  command_exists curl || missing+=(curl ca-certificates)
+  command_exists gpg || missing+=(gnupg)
+  (( ${#missing[@]} > 0 )) || return 0
+  info "Installing ${missing[*]} to add apt repositories"
+  run_prefixed apt linux_apt_get update || { error "apt-get update failed"; return 1; }
+  run_prefixed apt linux_apt_get install -y --no-install-recommends "${missing[@]}" ||
+    { error "apt-get install failed"; return 1; }
+}
+
+# Download the signing key, refuse it unless it is exactly the pinned key,
+# then install the keyring and list file. Runs in a subshell so the EXIT trap
+# always removes the temporary directory.
+linux_install_apt_source() (
+  local name="$1" url fingerprint source tmp actual
+  url="$(linux_apt_source_field "$name" key)" || exit 1
+  fingerprint="$(linux_apt_source_field "$name" fingerprint)" || exit 1
+  source="$(linux_apt_source_field "$name" source)" || exit 1
+
+  tmp="$(mktemp -d)" || exit 1
+  # shellcheck disable=SC2064 # expand now; tmp is local to this subshell
+  trap "rm -rf '$tmp'" EXIT
+  chmod 0755 "$tmp" || exit 1
+
+  if ! curl -fsSL --retry 3 -o "${tmp}/key.asc" "$url"; then
+    error "Could not download $url"
+    exit 1
+  fi
+  actual="$(linux_key_fingerprints "${tmp}/key.asc")"
+  if [[ "$actual" != "$fingerprint" ]]; then
+    error "$name signing key does not match the pinned fingerprint $fingerprint; got: ${actual:-none}"
+    exit 1
+  fi
+  linux_apt_list_line "$name" "$source" >"${tmp}/list" || exit 1
+  linux_as_root install -d -m 0755 /etc/apt/keyrings || exit 1
+  linux_as_root install -m 0644 "${tmp}/key.asc" "$(linux_apt_keyring "$name")" || exit 1
+  linux_as_root install -m 0644 "${tmp}/list" "$(linux_apt_list "$name")" || exit 1
+)
+
+# Add each missing or changed repository; keep going after a failure.
+linux_install_apt_sources() {
+  local names name failed=0
+  names="$(linux_block_names "$(linux_apt_sources_file)")" || return 1
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    command_exists gpg && linux_apt_source_current "$name" && continue
+    linux_ensure_source_tools || return 1
+    if linux_install_apt_source "$name"; then
+      success "Added apt repository $name"
+    else
+      failed=1
+    fi
+  done <<<"$names"
+  return "$failed"
+}
+
+# Read-only: warn about each missing or stale repository and return 1 if any.
+linux_check_apt_sources() {
+  local names name failed=0
+  names="$(linux_block_names "$(linux_apt_sources_file)")" || return 1
+  [[ -n "$names" ]] || return 0
+  if ! command_exists gpg; then
+    warn "gpg is missing; cannot verify apt repository keys"
+    return 1
+  fi
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    if ! linux_apt_source_current "$name"; then
+      warn "apt repository $name is missing or does not match packages/apt-sources.linux"
+      failed=1
+    fi
+  done <<<"$names"
+  return "$failed"
+}
+
+# Release binaries from packages/extras.linux (format documented in that file).
+
+linux_extras_bin_dir() {
+  printf '%s/.local/bin\n' "$HOME"
+}
+
+# Print the tool names in packages/extras.linux, one per line.
+linux_extras_names() {
+  linux_block_names "$(linux_extras_file)"
+}
+
+# Print the raw value of a key in a tool's block; fail when it is absent.
+linux_extra_raw() {
+  linux_block_value "$(linux_extras_file)" "$1" "$2"
 }
 
 # The host architecture under the names used for sha256.<arch> keys.

@@ -19,5 +19,12 @@ git-lfs
 curl
 ca-certificates
 
+# Verifies third-party apt signing keys from packages/apt-sources.linux
+gnupg
+
+# Claude Code CLI, from Anthropic's repository in packages/apt-sources.linux.
+# Upgraded with the rest of the bundle by dot upgrade.
+claude-code
+
 # Native npm modules (node-gyp: gcc, g++, make). Prebuilt Node does not need it.
 build-essential
