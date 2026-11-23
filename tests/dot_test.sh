@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Fixtures set HOME; a runner-provided XDG_CONFIG_HOME (GitHub sets one) would
+# send profile reads and writes outside it.
+unset XDG_CONFIG_HOME
 failures=0
 
 pass() {
@@ -25,11 +28,14 @@ assert_contains() {
   fi
 }
 
+# The setup menu label comes from the platform backend ("this Mac", "this Linux box").
+setup_label="$(bash -c 'source "$1/dot"; platform_label' _ "$ROOT")"
+
 non_tty_output="$(printf '' | "$ROOT/dot")"
 assert_contains "$non_tty_output" 'Usage: dot [--headless] [command]' 'no-argument non-TTY invocation prints help'
 
 if command -v python3 >/dev/null 2>&1; then
-  if python3 - "$ROOT" <<'PY'
+  if python3 - "$ROOT" "$setup_label" <<'PY'
 import os
 import pty
 import re
@@ -39,6 +45,7 @@ import sys
 import time
 
 root = sys.argv[1]
+setup_label = sys.argv[2].encode()
 def start(args, env=None):
     pid, master = pty.fork()
     if pid == 0:
@@ -92,7 +99,7 @@ if b"Dot\r\n" not in output or b"Current package profile:" not in output:
 
 assert b'\x1b[1;31m\r\nDot\r\n' in output, 'TTY title should be Dot in red'
 plain = re.sub(rb'\x1b\[[0-9;]*m', b'', output)
-assert b'[1] Set up this Mac' in plain
+assert b'[1] Set up ' + setup_label in plain
 assert b'[q] Quit' in plain
 assert b'Choose an operation' not in plain
 
@@ -189,7 +196,7 @@ if [[ "$menu_output" != *$'\033['* && "$menu_output" != *'Choose an operation'* 
 else
   fail_test 'redirected menus have no ANSI colours or choice prompt'
 fi
-assert_contains "$menu_output" '[1] Set up this Mac' 'menu options use bracketed keys'
+assert_contains "$menu_output" "[1] Set up ${setup_label}" 'menu options use bracketed keys'
 assert_contains "$menu_output" 'DISPATCH setup' 'setup menu choice uses command dispatch'
 assert_contains "$menu_output" 'DISPATCH upgrade' 'upgrade menu choice uses command dispatch'
 assert_contains "$menu_output" 'DISPATCH check' 'check menu choice uses command dispatch'
