@@ -92,6 +92,8 @@ Without headless mode, `dot` prompts only when standard input is a terminal.
 │   ├── bundle           # Packages for every machine
 │   ├── bundle.personal  # Personal applications
 │   ├── bundle.work      # Work applications
+│   ├── bundle.linux     # apt packages for Linux agent boxes
+│   ├── extras.linux     # Pinned Linux release binaries, such as asdf
 │   └── trusted-formulae # Approved third-party formulae
 ├── scripts/lib/         # Reusable dot implementation
 ├── scripts/macos.sh     # macOS preferences
@@ -210,6 +212,6 @@ Differences from macOS:
 - No package profiles: apt installs the single `packages/bundle.linux`.
 - No Oh My Zsh; bash is the shell. Setup adds a marked block at the top of `~/.bashrc` and `~/.profile` that sources `~/.config/dotfiles/env.sh`, so `~/.local/bin` and asdf shims are on `PATH` even for non-interactive SSH commands.
 - `home/Library/` is not linked.
-- asdf is a release binary in `~/.local/bin`, pinned with SHA-256 hashes in `packages/asdf.linux`.
+- asdf is a release binary in `~/.local/bin`. `packages/extras.linux` pins it, and any other tool whose apt version is too old, to an exact release with SHA-256 hashes. Adding a tool there is one block; the file header documents the format. Setup and upgrade install missing or outdated entries, and `dot check` reports them.
 
 `tests/linux/run.sh` runs headless setup and check in a fresh `ubuntu:24.04` container; CI runs it on every push, along with a run where sudo needs a password to confirm headless setup fails fast.

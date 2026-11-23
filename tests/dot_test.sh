@@ -630,6 +630,132 @@ else
   fail_test 'Linux sudo check fails fast without prompting when not interactive'
 fi
 
+# Linux release binaries from packages/extras.linux.
+extras_output="$(bash -c '
+  set -euo pipefail
+  DOT_ROOT="$1"
+  source "$1/scripts/lib/common.sh"
+  source "$1/scripts/lib/platform/linux.sh"
+  linux_extras_names
+  for machine in x86_64 aarch64; do
+    uname() { printf "%s\n" "$machine"; }
+    arch="$(linux_extras_arch)"
+    printf "%s %s %s\n" "$arch" "$(linux_extra_field asdf url)" "$(linux_extra_field asdf "sha256.$arch")"
+  done
+  printf "%s|%s|%s\n" "$(linux_extra_field asdf binary)" "$(linux_extra_field asdf check)" "$(linux_extra_field asdf expect)"
+' _ "$ROOT" 2>&1)"
+extras_expected='asdf
+amd64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-amd64.tar.gz 6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d
+arm64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-arm64.tar.gz 356e135a608bdfba34038c1f18c4b82434d7b6d546e30dbf372c61baaa2f442c
+asdf|version|v0.20.2'
+if [[ "$extras_output" == "$extras_expected" ]]; then
+  pass 'extras table resolves the pinned asdf release for each architecture'
+else
+  printf 'Expected:\n%s\nGot:\n%s\n' "$extras_expected" "$extras_output" >&2
+  fail_test 'extras table resolves the pinned asdf release for each architecture'
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+  fixture="$(mktemp -d)"
+  mkdir -p "$fixture/repo/packages" "$fixture/home" "$fixture/tmp" "$fixture/src/demo-1.2.3-x86_64/bin"
+  printf '#!/bin/sh\necho "demo 1.2.3 (build abc)"\n' >"$fixture/src/demo-1.2.3-x86_64/bin/demo"
+  chmod +x "$fixture/src/demo-1.2.3-x86_64/bin/demo"
+  tar -czf "$fixture/demo.tar.gz" -C "$fixture/src" demo-1.2.3-x86_64
+  demo_sha="$(sha256sum "$fixture/demo.tar.gz")"
+  demo_sha="${demo_sha%% *}"
+  write_demo_table() {
+    cat >"$fixture/repo/packages/extras.linux" <<TABLE
+# fixture
+[demo]
+version      = $1
+url          = https://example.invalid/demo/{version}/demo-{arch}.tgz
+binary       = demo-{version}-{arch}/bin/demo
+check        = --version
+expect       = {version}
+arch         = amd64=x86_64 arm64=aarch64
+sha256.amd64 = $2
+sha256.arm64 = $2
+TABLE
+  }
+  run_demo() {
+    FIXTURE="$fixture" TMPDIR="$fixture/tmp" bash -c '
+      DOT_ROOT="$FIXTURE/repo"
+      HOME="$FIXTURE/home"
+      source "$1/scripts/lib/common.sh"
+      source "$1/scripts/lib/platform/linux.sh"
+      uname() { printf "x86_64\n"; }
+      curl() {
+        local out="" url=""
+        while (( $# > 0 )); do
+          case "$1" in -o) out="$2"; shift ;; https://*) url="$1" ;; esac
+          shift
+        done
+        printf "%s\n" "$url" >>"$FIXTURE/downloads"
+        cp "$FIXTURE/demo.tar.gz" "$out"
+      }
+      "${@:2}"
+    ' _ "$ROOT" "$@" 2>&1
+  }
+
+  write_demo_table 1.2.3 "$demo_sha"
+  set +e
+  extras_check_missing="$(run_demo linux_check_extras)"
+  extras_check_missing_status=$?
+  extras_first="$(run_demo linux_install_extras)"
+  extras_first_status=$?
+  extras_first_downloads="$(<"$fixture/downloads")"
+  extras_second="$(run_demo linux_install_extras)"
+  extras_second_status=$?
+  extras_second_downloads="$(<"$fixture/downloads")"
+  extras_check_ok="$(run_demo linux_check_extras)"
+  extras_check_ok_status=$?
+  write_demo_table 1.2.30 "$demo_sha"
+  extras_check_old="$(run_demo linux_check_extras)"
+  extras_check_old_status=$?
+  write_demo_table 1.2.4 "$(printf '0%.0s' {1..64})"
+  extras_bad_sum="$(run_demo linux_install_extras)"
+  extras_bad_sum_status=$?
+  set -e
+
+  if (( extras_check_missing_status == 1 )) && [[ "$extras_check_missing" == *'Release binary demo 1.2.3 is not installed'* ]]; then
+    pass 'extras check reports a missing release binary'
+  else
+    printf '%s\n' "$extras_check_missing" >&2
+    fail_test 'extras check reports a missing release binary'
+  fi
+  if (( extras_first_status == 0 )) && [[ "$extras_first" == *'Installed demo 1.2.3'* ]] &&
+    [[ "$extras_first_downloads" == 'https://example.invalid/demo/1.2.3/demo-x86_64.tgz' ]] &&
+    [[ -x "$fixture/home/.local/bin/demo" ]]; then
+    pass 'extras install expands {version} and a per-tool arch map, verifies, and installs'
+  else
+    printf '%s\n' "$extras_first" >&2
+    fail_test 'extras install expands {version} and a per-tool arch map, verifies, and installs'
+  fi
+  if (( extras_second_status == 0 )) && [[ "$extras_second" == *'demo 1.2.3 is already installed'* ]] &&
+    [[ "$extras_second_downloads" == "$extras_first_downloads" ]]; then
+    pass 'extras install is idempotent and skips the download'
+  else
+    printf '%s\n' "$extras_second" >&2
+    fail_test 'extras install is idempotent and skips the download'
+  fi
+  if (( extras_check_ok_status == 0 && extras_check_old_status == 1 )) &&
+    [[ "$extras_check_old" == *'Release binary demo is outdated: want 1.2.30, found: demo 1.2.3 (build abc)'* ]]; then
+    pass 'extras check compares versions exactly'
+  else
+    printf '%s\n%s\n' "$extras_check_ok" "$extras_check_old" >&2
+    fail_test 'extras check compares versions exactly'
+  fi
+  if (( extras_bad_sum_status != 0 )) && [[ "$extras_bad_sum" == *'demo checksum mismatch'* ]] &&
+    [[ "$("$fixture/home/.local/bin/demo")" == 'demo 1.2.3 (build abc)' ]] &&
+    [[ -z "$(find "$fixture/tmp" -mindepth 1 -print -quit)" ]]; then
+    pass 'extras install rejects a checksum mismatch and cleans up its temporary files'
+  else
+    printf '%s\n' "$extras_bad_sum" >&2
+    fail_test 'extras install rejects a checksum mismatch and cleans up its temporary files'
+  fi
+  rm -rf "$fixture"
+fi
+
 if (( failures > 0 )); then
   printf '%s test(s) failed\n' "$failures" >&2
   exit 1
