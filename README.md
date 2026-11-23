@@ -121,6 +121,16 @@ Pi has its own asdf runtime under `~/.config/pi-runtime`. Its tracked `.tool-ver
 
 `dot setup` installs Pi, `dot upgrade` updates it, and `dot check` verifies it. Pi's `/update` command also checks for a newer Node release in the configured major version. It asks before updating the tracked `.tool-versions` file and requires a Pi restart when the runtime changes.
 
+### Settings
+
+Pi rewrites `~/.pi/agent/settings.json` at runtime: it stores a device ID, changelog state, and the model you last picked. So that file is local, not a managed symlink. Shared settings live in `templates/pi/settings.json`, and `dot apply home` (also run by setup and upgrade) merges them into the local file using Pi's own Node:
+
+- Keys in the shared file win.
+- Every other local key is kept, including per-machine choices such as `defaultProvider` and `defaultModel`.
+- Packages merge by source: a package added on one machine with `pi install` stays. Removing a package from the shared file does not uninstall it; run `pi remove` on each machine.
+
+To share a setting everywhere, add it to `templates/pi/settings.json` and run `dot apply home`. For a setting that belongs to one project, use that project's `.pi/settings.json` (`pi config -l`, `pi install -l`). `dot check` warns when the local file is missing a shared value.
+
 ### Local MCP connections
 
 Pi's `~/.pi/agent/mcp.json` is a local file, not a managed symlink: server URLs can contain credentials. `dot apply home` (also run by setup and upgrade) copies `templates/pi/mcp.example.json` there only if no local configuration exists. Existing files and symlinks are never overwritten. Edit the local file to configure and enable servers, then run `/reload` in Pi.

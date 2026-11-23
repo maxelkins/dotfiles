@@ -71,3 +71,54 @@ check_pi_install() {
   "$node_dir/bin/node" -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 19) ? 0 : 1)' || return 1
   "$node_dir/bin/node" "$node_dir/bin/pi" --version >/dev/null
 }
+
+# Shared Pi settings live in templates/pi/settings.json and merge into the
+# local ~/.pi/agent/settings.json, which Pi rewrites at runtime. The merge runs
+# on Pi's own Node, so it needs no extra tools. See scripts/lib/pi-settings.mjs.
+pi_settings_node() {
+  local node_dir
+  node_dir="$(pi_node_dir 2>/dev/null)" || return 1
+  [[ -x "${node_dir}/bin/node" ]] || return 1
+  printf '%s/bin/node\n' "$node_dir"
+}
+
+pi_settings() {
+  local node
+  node="$(pi_settings_node)" || return 3
+  "$node" "${DOT_ROOT}/scripts/lib/pi-settings.mjs" "$1" \
+    "${DOT_ROOT}/templates/pi/settings.json" "${HOME}/.pi/agent/settings.json"
+}
+
+apply_pi_settings() {
+  local status=0
+  info "Applying shared Pi settings"
+  pi_settings apply || status=$?
+  case "$status" in
+    0) success "~/.pi/agent/settings.json has the shared Pi settings" ;;
+    3)
+      error "Pi's Node is missing, so shared Pi settings were not applied; run: dot setup"
+      return 1
+      ;;
+    *)
+      error "Shared Pi settings could not be applied"
+      return 1
+      ;;
+  esac
+}
+
+check_pi_settings() {
+  local output status=0 line
+  output="$(pi_settings check 2>&1)" || status=$?
+  if (( status == 3 )); then
+    warn "Pi's Node is missing, so Pi settings were not checked"
+    return 1
+  fi
+  if (( status == 0 )); then
+    success "~/.pi/agent/settings.json has the shared Pi settings"
+    return 0
+  fi
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && warn "$line"
+  done <<<"$output"
+  return 1
+}

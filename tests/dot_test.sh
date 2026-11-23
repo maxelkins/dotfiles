@@ -280,6 +280,59 @@ FIXTURE="$fixture" bash -c '
 pass 'local MCP config is seeded without replacing existing files or symlinks'
 rm -rf "$fixture"
 
+if command -v node >/dev/null 2>&1; then
+  fixture="$(mktemp -d)"
+  mkdir -p "$fixture/repo" "$fixture/home/.pi/agent"
+  # The old Stow link, pointing at a repository copy with local state.
+  printf '%s\n' '{"theme":"dark","defaultModel":"local-model","deviceId":"abc","packages":["npm:shared",{"source":"npm:local-only"}]}' > "$fixture/repo/settings.json"
+  cp "$fixture/repo/settings.json" "$fixture/original.json"
+  ln -s "$fixture/repo/settings.json" "$fixture/home/.pi/agent/settings.json"
+  if FIXTURE="$fixture" bash -c '
+    set -euo pipefail
+    DOT_ROOT="$1"
+    DOT_HOME_DIR="$1/home"
+    HOME="$FIXTURE/home"
+    source "$1/scripts/lib/common.sh"
+    source "$1/scripts/lib/pi.sh"
+    pi_settings_node() { command -v node; }
+    local_file="$HOME/.pi/agent/settings.json"
+    ! check_pi_settings >/dev/null 2>&1
+    apply_pi_settings >/dev/null
+    test ! -L "$local_file"
+    check_pi_settings >/dev/null
+    node -e "
+      const s = require(process.argv[1]);
+      const shared = require(process.argv[2]);
+      const assert = require(\"node:assert\");
+      assert.equal(s.theme, shared.theme);
+      assert.equal(s.defaultModel, \"local-model\");
+      assert.equal(s.deviceId, \"abc\");
+      assert.deepEqual(s.packages, [...shared.packages, \"npm:shared\", {source: \"npm:local-only\"}]);
+    " "$local_file" "$1/templates/pi/settings.json"
+    cmp "$FIXTURE/repo/settings.json" "$FIXTURE/original.json"
+    before="$(<"$local_file")"
+    apply_pi_settings >/dev/null
+    test "$(<"$local_file")" = "$before"
+    printf "{\"theme\":\"dark\"}\n" > "$local_file"
+    output="$(check_pi_settings 2>&1)" && exit 1
+    [[ "$output" == *"Pi setting \"theme\" differs"* ]]
+    rm "$local_file"
+    ln -s "$FIXTURE/missing" "$local_file"
+    apply_pi_settings >/dev/null
+    test ! -L "$local_file"
+    test ! -e "$FIXTURE/missing"
+    check_pi_settings >/dev/null
+    printf "not json" > "$local_file"
+    ! apply_pi_settings >/dev/null 2>&1
+    test "$(<"$local_file")" = "not json"
+  ' _ "$ROOT"; then
+    pass 'shared Pi settings merge into a local file and keep local state'
+  else
+    fail_test 'shared Pi settings merge into a local file and keep local state'
+  fi
+  rm -rf "$fixture"
+fi
+
 unsupported_home="$(mktemp -d)"
 hooks_before="$(git -C "$ROOT" config core.hooksPath || true)"
 set +e

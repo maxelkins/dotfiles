@@ -34,6 +34,7 @@ DOT_STEPS=(
   "Pi              | check_pi                   | install_pi                       | -                        | -             | yes | Reinstall or update Pi: dot upgrade"
   "shell           | platform_check_shell       | platform_install_shell           | skip                     | -             | yes | Install shell dependencies: dot setup"
   "home links      | check_managed_links        | install_home_links               | -                        | -             | yes | Repair managed links: dot apply home"
+  "Pi settings     | check_pi_settings          | apply_pi_settings                | -                        | Pi            | yes | Apply shared Pi settings: dot apply home"
   "dot command     | check_dot_command          | link_dot_command                 | skip                     | -             | no  | Link the dot command: dot setup"
   "git hooks       | check_git_hooks            | configure_git_hooks              | -                        | -             | no  | Configure repository hooks: dot setup"
 )
