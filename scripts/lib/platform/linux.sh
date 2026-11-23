@@ -30,24 +30,54 @@ linux_bundle_file() {
   printf '%s/packages/bundle.linux\n' "$DOT_ROOT"
 }
 
-linux_asdf_pin_file() {
-  printf '%s/packages/asdf.linux\n' "$DOT_ROOT"
+linux_extras_file() {
+  printf '%s/packages/extras.linux\n' "$DOT_ROOT"
 }
 
 linux_is_root() {
   [[ "$(id -u)" == 0 ]]
 }
 
+# Without a user to answer, sudo must fail rather than ask for a password.
 linux_as_root() {
   if linux_is_root; then
     "$@"
-  else
+  elif dot_interactive; then
     sudo "$@"
+  else
+    sudo -n "$@"
   fi
 }
 
 linux_apt_get() {
-  linux_as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get "$@"
+  local dpkg_options=()
+  # Headless: keep locally modified config files instead of asking.
+  if dot_headless; then
+    dpkg_options=(-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+  fi
+  linux_as_root env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get ${dpkg_options[@]+"${dpkg_options[@]}"} "$@"
+}
+
+# Check sudo up front. Interactive runs may ask for the password once;
+# otherwise fail fast instead of hanging on a prompt nobody can answer.
+linux_check_sudo() {
+  if dot_interactive; then
+    if ! sudo -v; then
+      error "sudo could not authenticate; dot needs sudo to run apt-get"
+      return 1
+    fi
+    return 0
+  fi
+  if sudo -n true 2>/dev/null; then
+    return 0
+  fi
+  if dot_headless; then
+    error "sudo needs a password; configure passwordless sudo for unattended runs or run without --headless"
+  else
+    error "sudo needs a password; configure passwordless sudo for unattended runs or run dot from a terminal"
+  fi
+  return 1
 }
 
 platform_prepare() {
@@ -64,8 +94,8 @@ platform_prepare() {
     error "sudo is required to install packages; install it as root: apt-get install -y sudo"
     return 1
   fi
-  if ! sudo -v; then
-    error "sudo could not authenticate; dot needs sudo to run apt-get"
+  if ! linux_check_sudo; then
+    skipped "apt package installation requires sudo"
     return 1
   fi
   success "apt-get and sudo are available"
@@ -145,100 +175,265 @@ platform_update_packages() {
   success "Bundle packages are up to date"
 }
 
-# Read-only: non-zero, listing each missing package, if any is not installed.
+# Read-only: non-zero, listing each missing apt package and each missing or
+# outdated release binary from packages/extras.linux.
 platform_check_packages() {
-  local missing=() pkg
+  local missing=() pkg failed=0
   if ! command_exists dpkg-query; then
     error "dpkg-query is missing; cannot check apt packages"
-    return 1
-  fi
-  linux_collect_missing missing || return 1
-  if (( ${#missing[@]} == 0 )); then
-    return 0
-  fi
-  for pkg in "${missing[@]}"; do
-    warn "apt package $pkg is not installed"
-  done
-  return 1
-}
-
-# Print a field from packages/asdf.linux: `version`, or `sha256 <arch>`.
-linux_asdf_pin() {
-  local pin value
-  pin="$(linux_asdf_pin_file)"
-  if [[ ! -f "$pin" ]]; then
-    error "asdf pin is missing: $pin"
-    return 1
-  fi
-  if [[ "$1" == version ]]; then
-    value="$(awk '$1 == "version" { print $2; exit }' "$pin")"
-    if [[ ! "$value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      error "No valid 'version X.Y.Z' line in $pin"
-      return 1
-    fi
+    failed=1
+  elif linux_collect_missing missing; then
+    for pkg in ${missing[@]+"${missing[@]}"}; do
+      warn "apt package $pkg is not installed"
+      failed=1
+    done
   else
-    value="$(awk -v arch="$2" '$1 == "sha256" && $2 == arch { print $3; exit }' "$pin")"
-    if [[ ! "$value" =~ ^[0-9a-f]{64}$ ]]; then
-      error "No valid 'sha256 $2 <hex>' line in $pin"
-      return 1
-    fi
+    failed=1
   fi
-  printf '%s\n' "$value"
+  linux_check_extras || failed=1
+  return "$failed"
 }
 
-linux_asdf_arch() {
+# Release binaries from packages/extras.linux (format documented in that file).
+
+linux_extras_bin_dir() {
+  printf '%s/.local/bin\n' "$HOME"
+}
+
+# Print the tool names in packages/extras.linux, one per line.
+linux_extras_names() {
+  local file names name
+  file="$(linux_extras_file)"
+  if [[ ! -f "$file" ]]; then
+    error "Release binary table is missing: $file"
+    return 1
+  fi
+  names="$(awk '/^[[:space:]]*\[/ { line = $0; gsub(/[][[:space:]]/, "", line); print line }' "$file")"
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      error "Invalid tool name '[$name]' in $file"
+      return 1
+    fi
+    printf '%s\n' "$name"
+  done <<<"$names"
+}
+
+# Print the raw value of a key in a tool's block; fail when it is absent.
+linux_extra_raw() {
+  awk -v name="$1" -v key="$2" '
+    /^[[:space:]]*(#|$)/ { next }
+    /^[[:space:]]*\[/ { line = $0; gsub(/[][[:space:]]/, "", line); in_block = (line == name); next }
+    in_block {
+      eq = index($0, "=")
+      if (!eq) next
+      k = substr($0, 1, eq - 1); v = substr($0, eq + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+      if (k == key) { print v; found = 1; exit }
+    }
+    END { exit !found }
+  ' "$(linux_extras_file)"
+}
+
+# The host architecture under the names used for sha256.<arch> keys.
+linux_extras_arch() {
   case "$(uname -m)" in
-    x86_64) printf 'amd64\n' ;;
+    x86_64 | amd64) printf 'amd64\n' ;;
     aarch64 | arm64) printf 'arm64\n' ;;
     *)
-      error "Unsupported architecture for asdf: $(uname -m)"
+      error "Unsupported architecture for release binaries: $(uname -m)"
       return 1
       ;;
   esac
 }
 
-# `asdf version` prints e.g. "v0.20.2 (revision cb72590)"; compare the first word exactly.
-linux_asdf_has_version() {
-  local bin="$1" version="$2" output
-  [[ -x "$bin" ]] || return 1
-  output="$("$bin" version 2>/dev/null)" || return 1
-  [[ "${output%% *}" == "v${version}" ]]
+# The host architecture under the tool's own naming (its optional arch map).
+linux_extra_arch() {
+  local name="$1" arch map pair
+  local pairs=()
+  arch="$(linux_extras_arch)" || return 1
+  if ! map="$(linux_extra_raw "$name" arch)"; then
+    printf '%s\n' "$arch"
+    return 0
+  fi
+  read -r -a pairs <<<"$map"
+  for pair in ${pairs[@]+"${pairs[@]}"}; do
+    if [[ "${pair%%=*}" == "$arch" && "$pair" == *=?* ]]; then
+      printf '%s\n' "${pair#*=}"
+      return 0
+    fi
+  done
+  error "[$name] arch in $(linux_extras_file) has no '${arch}=<name>' entry"
+  return 1
 }
 
-# Download, verify, and install the asdf binary. Runs in a subshell so the
-# EXIT trap always removes the temporary directory.
-linux_fetch_asdf() (
-  local version="$1" arch="$2" expected="$3" dest="$4"
-  local asset="asdf-v${version}-linux-${arch}.tar.gz"
-  local url="https://github.com/asdf-vm/asdf/releases/download/v${version}/${asset}"
+# Print a validated field with {version} and {arch} expanded.
+linux_extra_field() {
+  local name="$1" key="$2" value version arch
+  if ! value="$(linux_extra_raw "$name" "$key")" || [[ -z "$value" ]]; then
+    error "[$name] in $(linux_extras_file) has no '$key' value"
+    return 1
+  fi
+  case "$key" in
+    version)
+      if [[ ! "$value" =~ ^[0-9][0-9A-Za-z.+-]*$ ]]; then
+        error "[$name] version '$value' is not a release version"
+        return 1
+      fi
+      ;;
+    sha256.*)
+      if [[ ! "$value" =~ ^[0-9a-f]{64}$ ]]; then
+        error "[$name] $key is not a lowercase SHA-256 hex digest"
+        return 1
+      fi
+      ;;
+  esac
+  if [[ "$value" == *'{version}'* ]]; then
+    version="$(linux_extra_field "$name" version)" || return 1
+    value="${value//'{version}'/$version}"
+  fi
+  if [[ "$value" == *'{arch}'* ]]; then
+    arch="$(linux_extra_arch "$name")" || return 1
+    value="${value//'{arch}'/$arch}"
+  fi
+  case "$key" in
+    url)
+      if [[ ! "$value" =~ ^https://.+\.(tar\.gz|tgz)$ ]]; then
+        error "[$name] url must be an https .tar.gz or .tgz asset: $value"
+        return 1
+      fi
+      ;;
+    binary)
+      if [[ "$value" == /* || "/${value}/" == */../* ]]; then
+        error "[$name] binary must be a relative path inside the archive: $value"
+        return 1
+      fi
+      ;;
+  esac
+  printf '%s\n' "$value"
+}
+
+# Print the first output line of `bin check-args`; fail if it cannot run.
+linux_extra_version_line() {
+  local bin="$1" check="$2" output
+  local args=()
+  [[ -x "$bin" ]] || return 1
+  read -r -a args <<<"$check"
+  output="$("$bin" ${args[@]+"${args[@]}"} 2>/dev/null)" || return 1
+  printf '%s\n' "${output%%$'\n'*}"
+}
+
+# True when a word of the version line equals the expected word exactly.
+linux_extra_has_version() {
+  local line word
+  local words=()
+  line="$(linux_extra_version_line "$1" "$2")" || return 1
+  read -r -a words <<<"$line"
+  for word in ${words[@]+"${words[@]}"}; do
+    [[ "$word" == "$3" ]] && return 0
+  done
+  return 1
+}
+
+# Download, verify, and install one binary. Runs in a subshell so the EXIT
+# trap always removes the temporary directory.
+linux_fetch_extra() (
+  local name="$1" url="$2" expected="$3" binary="$4" dest="$5"
   local tmp actual
 
   tmp="$(mktemp -d)" || exit 1
   # shellcheck disable=SC2064 # expand now; tmp is local to this subshell
   trap "rm -rf '$tmp'" EXIT
 
-  if ! curl -fsSL --retry 3 -o "${tmp}/${asset}" "$url"; then
+  if ! curl -fsSL --retry 3 -o "${tmp}/asset" "$url"; then
     error "Could not download $url"
     exit 1
   fi
-  actual="$(sha256sum "${tmp}/${asset}")" || exit 1
+  actual="$(sha256sum "${tmp}/asset")" || exit 1
   actual="${actual%% *}"
   if [[ "$actual" != "$expected" ]]; then
-    error "asdf checksum mismatch for ${asset}: expected ${expected}, got ${actual}"
+    error "$name checksum mismatch for ${url##*/}: expected ${expected}, got ${actual}"
     exit 1
   fi
   mkdir "${tmp}/extract" || exit 1
-  if ! tar -xzf "${tmp}/${asset}" -C "${tmp}/extract"; then
-    error "Could not extract ${asset}"
+  if ! tar -xzf "${tmp}/asset" -C "${tmp}/extract"; then
+    error "Could not extract ${url##*/}"
     exit 1
   fi
-  if [[ ! -f "${tmp}/extract/asdf" ]]; then
-    error "asdf binary not found in ${asset}"
+  if [[ ! -f "${tmp}/extract/${binary}" ]]; then
+    error "$binary not found in ${url##*/}"
     exit 1
   fi
   mkdir -p "$(dirname "$dest")" || exit 1
-  install -m 0755 "${tmp}/extract/asdf" "$dest" || exit 1
+  install -m 0755 "${tmp}/extract/${binary}" "$dest" || exit 1
 )
+
+# Install one tool unless its pinned version is already installed.
+linux_install_extra() {
+  local name="$1" version check expect url binary sha256 arch
+  local bin
+  bin="$(linux_extras_bin_dir)/${name}"
+  version="$(linux_extra_field "$name" version)" || return 1
+  check="$(linux_extra_field "$name" check)" || return 1
+  expect="$(linux_extra_field "$name" expect)" || return 1
+
+  if linux_extra_has_version "$bin" "$check" "$expect"; then
+    success "$name $version is already installed"
+    return 0
+  fi
+
+  arch="$(linux_extras_arch)" || return 1
+  url="$(linux_extra_field "$name" url)" || return 1
+  binary="$(linux_extra_field "$name" binary)" || return 1
+  sha256="$(linux_extra_field "$name" "sha256.${arch}")" || return 1
+  if ! command_exists curl || ! command_exists sha256sum || ! command_exists tar; then
+    error "curl, sha256sum, and tar are required to install $name; run: dot setup"
+    return 1
+  fi
+  linux_fetch_extra "$name" "$url" "$sha256" "$binary" "$bin" || return 1
+  if ! linux_extra_has_version "$bin" "$check" "$expect"; then
+    error "Installed $name does not report $expect"
+    return 1
+  fi
+  success "Installed $name $version at $bin"
+}
+
+# Install every tool in packages/extras.linux; keep going after a failure.
+linux_install_extras() {
+  local names name failed=0
+  names="$(linux_extras_names)" || return 1
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    linux_install_extra "$name" || failed=1
+  done <<<"$names"
+  return "$failed"
+}
+
+# Read-only: warn about each missing or outdated tool and return 1 if any.
+linux_check_extras() {
+  local names name version check expect bin line failed=0
+  names="$(linux_extras_names)" || return 1
+  while IFS= read -r name; do
+    [[ -n "$name" ]] || continue
+    bin="$(linux_extras_bin_dir)/${name}"
+    if ! version="$(linux_extra_field "$name" version)" ||
+      ! check="$(linux_extra_field "$name" check)" ||
+      ! expect="$(linux_extra_field "$name" expect)"; then
+      failed=1
+      continue
+    fi
+    if [[ ! -x "$bin" ]]; then
+      warn "Release binary $name $version is not installed at ~/.local/bin/${name}"
+      failed=1
+    elif ! linux_extra_has_version "$bin" "$check" "$expect"; then
+      line="$(linux_extra_version_line "$bin" "$check")" || line='no version output'
+      warn "Release binary $name is outdated: want $expect, found: $line"
+      failed=1
+    fi
+  done <<<"$names"
+  return "$failed"
+}
 
 linux_path_prepend() {
   case ":${PATH:-}:" in
@@ -292,29 +487,13 @@ linux_install_hook() {
   cat "${file}.dot-tmp" >"$file" && rm -f "${file}.dot-tmp"
 }
 
+# Installs the release binaries (asdf among them) and puts ~/.local/bin and
+# asdf shims on PATH, now and for future shells.
 platform_install_runtime_manager() {
-  local version arch sha256 file
-  local bin="${HOME}/.local/bin/asdf"
+  local file failed=0
 
-  info "Installing the asdf runtime manager"
-  version="$(linux_asdf_pin version)" || return 1
-  arch="$(linux_asdf_arch)" || return 1
-  sha256="$(linux_asdf_pin sha256 "$arch")" || return 1
-
-  if linux_asdf_has_version "$bin" "$version"; then
-    success "asdf v${version} is already installed"
-  else
-    if ! command_exists curl || ! command_exists sha256sum; then
-      error "curl and sha256sum are required to install asdf; run: dot setup"
-      return 1
-    fi
-    linux_fetch_asdf "$version" "$arch" "$sha256" "$bin" || return 1
-    if ! linux_asdf_has_version "$bin" "$version"; then
-      error "Installed asdf does not report v${version}"
-      return 1
-    fi
-    success "Installed asdf v${version} at ${bin}"
-  fi
+  info "Installing release binaries from packages/extras.linux"
+  linux_install_extras || failed=1
 
   linux_path_prepend "${ASDF_DATA_DIR:-${HOME}/.asdf}/shims"
   linux_path_prepend "${HOME}/.local/bin"
@@ -326,6 +505,7 @@ platform_install_runtime_manager() {
     fi
   done
   success "Shell PATH hook is installed in ~/.bashrc and ~/.profile"
+  return "$failed"
 }
 
 platform_install_shell() {

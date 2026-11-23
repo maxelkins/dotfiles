@@ -26,7 +26,7 @@ assert_contains() {
 }
 
 non_tty_output="$(printf '' | "$ROOT/dot")"
-assert_contains "$non_tty_output" 'Usage: dot [command]' 'no-argument non-TTY invocation prints help'
+assert_contains "$non_tty_output" 'Usage: dot [--headless] [command]' 'no-argument non-TTY invocation prints help'
 
 if command -v python3 >/dev/null 2>&1; then
   if python3 - "$ROOT" <<'PY'
@@ -326,15 +326,11 @@ exclude_output="$(FIXTURE="$fixture" bash -c '
   source "$1/scripts/lib/common.sh"
   source "$1/scripts/lib/profile.sh"
   source "$1/scripts/lib/stow.sh"
+  source "$1/scripts/lib/steps.sh"
   source "$1/scripts/lib/doctor.sh"
   platform_home_excludes() { printf "Library\n"; }
-  platform_required_tools() { printf "git\n"; }
-  platform_supports_profiles() { return 0; }
-  platform_packages_checkable() { return 1; }
-  platform_check_shell() { success "shell ok"; }
-  check_pi_install() { return 0; }
-  pi_version() { printf "test\n"; }
-  pi_node_version() { printf "test\n"; }
+  platform_skips_step() { return 1; }
+  DOT_STEPS=("home links | check_managed_links | install_home_links | - | - | yes | Repair managed links: dot apply home")
 
   test "$(managed_home_files)" = "$DOT_HOME_DIR/.config/Library/config"
   prepare_managed_directories
@@ -358,6 +354,407 @@ else
   fail_test 'stow and doctor skip only top-level platform_home_excludes'
 fi
 rm -rf "$fixture"
+
+for backend in macos linux; do
+  set +e
+  backend_output="$(DOT_PLATFORM="$backend" bash -c '
+    source "$1/dot"
+    (( DOT_PLATFORM_BACKEND_LOADED == 1 )) || { echo "backend not loaded"; exit 1; }
+    seen="|"
+    for row in "${DOT_STEPS[@]}"; do
+      step_parse "$row"
+      for fn in "$STEP_CHECK" "$STEP_INSTALL" "$STEP_UPGRADE"; do
+        [[ "$fn" == skip ]] || declare -F "$fn" >/dev/null || echo "$STEP_NAME: $fn is not defined"
+      done
+      [[ "$STEP_REQUIRED" == yes || "$STEP_REQUIRED" == no ]] || echo "$STEP_NAME: required must be yes or no"
+      [[ -n "$STEP_ACTION" ]] || echo "$STEP_NAME: action is empty"
+      [[ "$STEP_NEEDS" == - || "$seen" == *"|$STEP_NEEDS|"* ]] || echo "$STEP_NAME: needs unknown or later step $STEP_NEEDS"
+      seen+="$STEP_NAME|"
+    done
+  ' _ "$ROOT" 2>&1)"
+  set -e
+  if [[ -z "$backend_output" ]]; then
+    pass "every step row has defined check and install functions on $backend"
+  else
+    printf '%s\n' "$backend_output" >&2
+    fail_test "every step row has defined check and install functions on $backend"
+  fi
+done
+
+# Replace every function named in the step table with a recorder, then run
+# setup, upgrade, and doctor in a scratch HOME.
+step_home="$(mktemp -d)"
+set +e
+step_output="$(HOME="$step_home" DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  for row in "${DOT_STEPS[@]}"; do
+    step_parse "$row"
+    for fn in "$STEP_CHECK" "$STEP_INSTALL" "$STEP_UPGRADE"; do
+      [[ "$fn" == skip ]] && continue
+      eval "$fn() { printf \"CALL %s\\n\" \"\$FUNCNAME\" >>\"\$HOME/calls\"; }"
+    done
+  done
+  cmd_setup base >/dev/null 2>&1 || exit 1
+  mv "$HOME/calls" "$HOME/setup.calls"
+  run_doctor >/dev/null 2>&1 || exit 1
+  mv "$HOME/calls" "$HOME/check.calls"
+  for row in "${DOT_STEPS[@]}"; do
+    step_parse "$row"
+    printf "%s\t%s\t%s\n" "$STEP_NAME" "$STEP_INSTALL" "$STEP_CHECK"
+  done
+' _ "$ROOT" 2>&1)"
+step_status=$?
+set -e
+if (( step_status == 0 )); then
+  expected_setup="" expected_check=""
+  while IFS=$'\t' read -r step_name step_install step_check; do
+    expected_setup+="CALL ${step_install}"$'\n'
+    expected_check+="CALL ${step_check}"$'\n'
+  done <<<"$step_output"
+  if [[ "$(<"$step_home/setup.calls")"$'\n' == "$expected_setup" && "$(<"$step_home/check.calls")"$'\n' == "$expected_check" ]]; then
+    pass 'setup and doctor iterate the same step rows in order'
+  else
+    printf 'setup:\n%s\ncheck:\n%s\n' "$(<"$step_home/setup.calls")" "$(<"$step_home/check.calls")" >&2
+    fail_test 'setup and doctor iterate the same step rows in order'
+  fi
+else
+  printf '%s\n' "$step_output" >&2
+  fail_test 'setup and doctor iterate the same step rows in order'
+fi
+rm -rf "$step_home"
+
+set +e
+doctor_output="$(DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  ok() { success "fine"; }
+  bad() { warn "broken"; return 1; }
+  DOT_STEPS=(
+    "one   | bad | ok | - | - | yes | Fix it: dot setup"
+    "two   | ok  | ok | - | - | yes | Other: dot upgrade"
+    "three | bad | ok | - | - | yes | Fix it: dot setup"
+    "four  | bad | ok | - | - | no  | Optional: dot setup"
+  )
+  run_doctor
+' _ "$ROOT" 2>&1)"
+doctor_status=$?
+set -e
+fix_count="$(grep -c 'Fix it: dot setup' <<<"$doctor_output" || true)"
+if (( doctor_status != 0 )) && [[ "$fix_count" == 1 && "$doctor_output" == *'2 health check(s) failed'* && "$doctor_output" == *'Optional: dot setup'* && "$doctor_output" != *'Other: dot upgrade'* ]]; then
+  pass 'doctor counts required failures and lists each failed action once'
+else
+  printf '%s\n' "$doctor_output" >&2
+  fail_test 'doctor counts required failures and lists each failed action once'
+fi
+
+set +e
+gate_output="$(DOT_PLATFORM=macos bash -c '
+  source "$1/dot"
+  ok() { printf "RAN %s\n" "$FUNCNAME"; }
+  prep() { printf "RAN prep\n"; return 1; }
+  pkgs() { printf "RAN pkgs\n"; }
+  later() { printf "RAN later\n"; }
+  DOT_STEPS=(
+    "prerequisites | ok | prep  | skip | -             | yes | a"
+    "packages      | ok | pkgs  | -    | prerequisites | yes | b"
+    "later         | ok | later | -    | -             | yes | c"
+  )
+  run_steps install || true
+  printf "FAILURES %s\n" "$DOT_STEP_FAILURES"
+  run_steps upgrade
+' _ "$ROOT" 2>&1)"
+set -e
+if [[ "$gate_output" == $'RAN prep\nRAN later\nFAILURES 1\nRAN pkgs\nRAN later' ]]; then
+  pass 'a failed step skips dependants, later steps continue, and upgrade honours skip'
+else
+  printf '%s\n' "$gate_output" >&2
+  fail_test 'a failed step skips dependants, later steps continue, and upgrade honours skip'
+fi
+
+# Headless mode.
+# shellcheck disable=SC2016 # expanded by the child bash
+headless_env_script='
+  source "$1/dot"
+  dispatch_command() {
+    printf "%s\n" "DOT_HEADLESS=${DOT_HEADLESS-}" "DEBIAN_FRONTEND=${DEBIAN_FRONTEND-}" \
+      "NEEDRESTART_MODE=${NEEDRESTART_MODE-}" "NONINTERACTIVE=${NONINTERACTIVE-}" \
+      "GIT_TERMINAL_PROMPT=${GIT_TERMINAL_PROMPT-}" "GIT_SSH_COMMAND=${GIT_SSH_COMMAND-}" "ARGS=$*"
+    bash -c "printf \"child:%s\n\" \"\$DOT_HEADLESS:\$DEBIAN_FRONTEND:\$NONINTERACTIVE:\$GIT_TERMINAL_PROMPT\""
+  }
+  main "${@:2}"
+'
+headless_expected='DOT_HEADLESS=1
+DEBIAN_FRONTEND=noninteractive
+NEEDRESTART_MODE=a
+NONINTERACTIVE=1
+GIT_TERMINAL_PROMPT=0
+GIT_SSH_COMMAND=ssh -o BatchMode=yes
+ARGS=check
+child:1:noninteractive:1:0'
+clean_env=(env -u DOT_HEADLESS -u DEBIAN_FRONTEND -u NEEDRESTART_MODE -u NONINTERACTIVE -u GIT_TERMINAL_PROMPT -u GIT_SSH_COMMAND -u GIT_SSH)
+for variant in flag env; do
+  if [[ "$variant" == flag ]]; then
+    headless_output="$("${clean_env[@]}" bash -c "$headless_env_script" _ "$ROOT" --headless check </dev/null 2>&1)"
+  else
+    headless_output="$("${clean_env[@]}" DOT_HEADLESS=1 bash -c "$headless_env_script" _ "$ROOT" check </dev/null 2>&1)"
+  fi
+  if [[ "$headless_output" == "$headless_expected" ]]; then
+    pass "headless $variant exports the no-prompt variables to child processes"
+  else
+    printf 'Expected:\n%s\nGot:\n%s\n' "$headless_expected" "$headless_output" >&2
+    fail_test "headless $variant exports the no-prompt variables to child processes"
+  fi
+done
+headless_output="$("${clean_env[@]}" GIT_SSH_COMMAND='ssh -i key' bash -c "$headless_env_script" _ "$ROOT" --headless check </dev/null 2>&1)"
+assert_contains "$headless_output" 'GIT_SSH_COMMAND=ssh -i key' 'headless keeps a caller-provided GIT_SSH_COMMAND'
+headless_output="$("${clean_env[@]}" bash -c "$headless_env_script" _ "$ROOT" check </dev/null 2>&1)"
+if [[ "$headless_output" == *'DOT_HEADLESS=0'* && "$headless_output" == *$'DEBIAN_FRONTEND=\n'* && "$headless_output" == *$'GIT_TERMINAL_PROMPT=\n'* ]]; then
+  pass 'without headless, the no-prompt variables are left alone'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'without headless, the no-prompt variables are left alone'
+fi
+
+set +e
+headless_output="$(DOT_HEADLESS=maybe "$ROOT/dot" help 2>&1)"
+headless_status=$?
+set -e
+if (( headless_status != 0 )) && [[ "$headless_output" == *'DOT_HEADLESS must be 1 or 0'* ]]; then
+  pass 'an unrecognised DOT_HEADLESS value is rejected'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'an unrecognised DOT_HEADLESS value is rejected'
+fi
+
+set +e
+headless_output="$("$ROOT/dot" --bogus setup 2>&1)"
+headless_status=$?
+set -e
+if (( headless_status != 0 )) && [[ "$headless_output" == *'Unknown global option: --bogus'* ]]; then
+  pass 'an unknown global option is rejected'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'an unknown global option is rejected'
+fi
+
+headless_output="$("$ROOT/dot" --headless </dev/null 2>&1)"
+assert_contains "$headless_output" 'Usage: dot [--headless] [command]' 'dot --headless without a command prints help'
+assert_contains "$("$ROOT/dot" --headless --help 2>&1)" 'DOT_HEADLESS=1' 'help documents headless mode'
+
+profile_home="$(mktemp -d)"
+mkdir -p "$profile_home/.config/mac-setup"
+printf 'work\n' >"$profile_home/.config/mac-setup/profile"
+headless_output="$(HOME="$profile_home" bash -c 'source "$1/dot"; DOT_HEADLESS=1; choose_profile_for_setup' _ "$ROOT" </dev/null 2>&1)"
+if [[ "$headless_output" == work ]]; then
+  pass 'headless profile chooser takes the saved default without a prompt'
+else
+  printf '%s\n' "$headless_output" >&2
+  fail_test 'headless profile chooser takes the saved default without a prompt'
+fi
+
+# The same at a real terminal, as with `ssh -t`: nothing may wait for input.
+if command -v python3 >/dev/null 2>&1; then
+  if python3 - "$ROOT" "$profile_home" <<'PY'
+import os
+import pty
+import select
+import sys
+import time
+
+root, home = sys.argv[1], sys.argv[2]
+
+def run(args, env):
+    pid, master = pty.fork()
+    if pid == 0:
+        os.environ.update(env)
+        os.environ['TERM'] = 'dumb'
+        os.execvp(args[0], args)
+    output = b''
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        if select.select([master], [], [], 0.05)[0]:
+            try:
+                output += os.read(master, 4096)
+            except OSError:
+                pass
+        finished, status = os.waitpid(pid, os.WNOHANG)
+        if finished:
+            try:
+                while select.select([master], [], [], 0.05)[0]:
+                    chunk = os.read(master, 4096)
+                    if not chunk:
+                        break
+                    output += chunk
+            except OSError:
+                pass
+            os.close(master)
+            return status, output.decode(errors='replace')
+    os.kill(pid, 9)
+    os.waitpid(pid, 0)
+    os.close(master)
+    raise AssertionError(f'{args} waited for input at a terminal: {output!r}')
+
+status, out = run([os.path.join(root, 'dot'), '--headless'], {})
+assert status == 0 and 'Usage: dot' in out and 'Quit' not in out, out
+
+status, out = run([os.path.join(root, 'dot')], {'DOT_HEADLESS': '1'})
+assert status == 0 and 'Usage: dot' in out and 'Quit' not in out, out
+
+script = 'source "$1/dot"; DOT_HEADLESS=1; choose_profile_for_setup'
+status, out = run(['bash', '-c', script, '_', root], {'HOME': home})
+assert status == 0 and out.strip() == 'work' and 'Package profile [' not in out, out
+PY
+  then
+    pass 'headless mode at a terminal prints help and takes the profile default without waiting'
+  else
+    fail_test 'headless mode at a terminal prints help and takes the profile default without waiting'
+  fi
+fi
+rm -rf "$profile_home"
+
+sudo_output="$(bash -c '
+  DOT_ROOT="$1"
+  source "$1/scripts/lib/common.sh"
+  source "$1/scripts/lib/platform/linux.sh"
+  sudo() { [[ "$1" == -n ]] || { echo "sudo prompted" >&2; return 0; }; return 1; }
+  DOT_HEADLESS=1
+  if linux_check_sudo; then echo "unexpected success"; fi
+  DOT_HEADLESS=0
+  if linux_check_sudo </dev/null; then echo "unexpected success"; fi
+' _ "$ROOT" 2>&1)"
+if [[ "$sudo_output" == *'sudo needs a password; configure passwordless sudo for unattended runs or run without --headless'* &&
+  "$sudo_output" == *'or run dot from a terminal'* &&
+  "$sudo_output" != *'sudo prompted'* && "$sudo_output" != *'unexpected success'* ]]; then
+  pass 'Linux sudo check fails fast without prompting when not interactive'
+else
+  printf '%s\n' "$sudo_output" >&2
+  fail_test 'Linux sudo check fails fast without prompting when not interactive'
+fi
+
+# Linux release binaries from packages/extras.linux.
+extras_output="$(bash -c '
+  set -euo pipefail
+  DOT_ROOT="$1"
+  source "$1/scripts/lib/common.sh"
+  source "$1/scripts/lib/platform/linux.sh"
+  linux_extras_names
+  for machine in x86_64 aarch64; do
+    uname() { printf "%s\n" "$machine"; }
+    arch="$(linux_extras_arch)"
+    printf "%s %s %s\n" "$arch" "$(linux_extra_field asdf url)" "$(linux_extra_field asdf "sha256.$arch")"
+  done
+  printf "%s|%s|%s\n" "$(linux_extra_field asdf binary)" "$(linux_extra_field asdf check)" "$(linux_extra_field asdf expect)"
+' _ "$ROOT" 2>&1)"
+extras_expected='asdf
+amd64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-amd64.tar.gz 6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d
+arm64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-arm64.tar.gz 356e135a608bdfba34038c1f18c4b82434d7b6d546e30dbf372c61baaa2f442c
+asdf|version|v0.20.2'
+if [[ "$extras_output" == "$extras_expected" ]]; then
+  pass 'extras table resolves the pinned asdf release for each architecture'
+else
+  printf 'Expected:\n%s\nGot:\n%s\n' "$extras_expected" "$extras_output" >&2
+  fail_test 'extras table resolves the pinned asdf release for each architecture'
+fi
+
+if command -v sha256sum >/dev/null 2>&1; then
+  fixture="$(mktemp -d)"
+  mkdir -p "$fixture/repo/packages" "$fixture/home" "$fixture/tmp" "$fixture/src/demo-1.2.3-x86_64/bin"
+  printf '#!/bin/sh\necho "demo 1.2.3 (build abc)"\n' >"$fixture/src/demo-1.2.3-x86_64/bin/demo"
+  chmod +x "$fixture/src/demo-1.2.3-x86_64/bin/demo"
+  tar -czf "$fixture/demo.tar.gz" -C "$fixture/src" demo-1.2.3-x86_64
+  demo_sha="$(sha256sum "$fixture/demo.tar.gz")"
+  demo_sha="${demo_sha%% *}"
+  write_demo_table() {
+    cat >"$fixture/repo/packages/extras.linux" <<TABLE
+# fixture
+[demo]
+version      = $1
+url          = https://example.invalid/demo/{version}/demo-{arch}.tgz
+binary       = demo-{version}-{arch}/bin/demo
+check        = --version
+expect       = {version}
+arch         = amd64=x86_64 arm64=aarch64
+sha256.amd64 = $2
+sha256.arm64 = $2
+TABLE
+  }
+  run_demo() {
+    FIXTURE="$fixture" TMPDIR="$fixture/tmp" bash -c '
+      DOT_ROOT="$FIXTURE/repo"
+      HOME="$FIXTURE/home"
+      source "$1/scripts/lib/common.sh"
+      source "$1/scripts/lib/platform/linux.sh"
+      uname() { printf "x86_64\n"; }
+      curl() {
+        local out="" url=""
+        while (( $# > 0 )); do
+          case "$1" in -o) out="$2"; shift ;; https://*) url="$1" ;; esac
+          shift
+        done
+        printf "%s\n" "$url" >>"$FIXTURE/downloads"
+        cp "$FIXTURE/demo.tar.gz" "$out"
+      }
+      "${@:2}"
+    ' _ "$ROOT" "$@" 2>&1
+  }
+
+  write_demo_table 1.2.3 "$demo_sha"
+  set +e
+  extras_check_missing="$(run_demo linux_check_extras)"
+  extras_check_missing_status=$?
+  extras_first="$(run_demo linux_install_extras)"
+  extras_first_status=$?
+  extras_first_downloads="$(<"$fixture/downloads")"
+  extras_second="$(run_demo linux_install_extras)"
+  extras_second_status=$?
+  extras_second_downloads="$(<"$fixture/downloads")"
+  extras_check_ok="$(run_demo linux_check_extras)"
+  extras_check_ok_status=$?
+  write_demo_table 1.2.30 "$demo_sha"
+  extras_check_old="$(run_demo linux_check_extras)"
+  extras_check_old_status=$?
+  write_demo_table 1.2.4 "$(printf '0%.0s' {1..64})"
+  extras_bad_sum="$(run_demo linux_install_extras)"
+  extras_bad_sum_status=$?
+  set -e
+
+  if (( extras_check_missing_status == 1 )) && [[ "$extras_check_missing" == *'Release binary demo 1.2.3 is not installed'* ]]; then
+    pass 'extras check reports a missing release binary'
+  else
+    printf '%s\n' "$extras_check_missing" >&2
+    fail_test 'extras check reports a missing release binary'
+  fi
+  if (( extras_first_status == 0 )) && [[ "$extras_first" == *'Installed demo 1.2.3'* ]] &&
+    [[ "$extras_first_downloads" == 'https://example.invalid/demo/1.2.3/demo-x86_64.tgz' ]] &&
+    [[ -x "$fixture/home/.local/bin/demo" ]]; then
+    pass 'extras install expands {version} and a per-tool arch map, verifies, and installs'
+  else
+    printf '%s\n' "$extras_first" >&2
+    fail_test 'extras install expands {version} and a per-tool arch map, verifies, and installs'
+  fi
+  if (( extras_second_status == 0 )) && [[ "$extras_second" == *'demo 1.2.3 is already installed'* ]] &&
+    [[ "$extras_second_downloads" == "$extras_first_downloads" ]]; then
+    pass 'extras install is idempotent and skips the download'
+  else
+    printf '%s\n' "$extras_second" >&2
+    fail_test 'extras install is idempotent and skips the download'
+  fi
+  if (( extras_check_ok_status == 0 && extras_check_old_status == 1 )) &&
+    [[ "$extras_check_old" == *'Release binary demo is outdated: want 1.2.30, found: demo 1.2.3 (build abc)'* ]]; then
+    pass 'extras check compares versions exactly'
+  else
+    printf '%s\n%s\n' "$extras_check_ok" "$extras_check_old" >&2
+    fail_test 'extras check compares versions exactly'
+  fi
+  if (( extras_bad_sum_status != 0 )) && [[ "$extras_bad_sum" == *'demo checksum mismatch'* ]] &&
+    [[ "$("$fixture/home/.local/bin/demo")" == 'demo 1.2.3 (build abc)' ]] &&
+    [[ -z "$(find "$fixture/tmp" -mindepth 1 -print -quit)" ]]; then
+    pass 'extras install rejects a checksum mismatch and cleans up its temporary files'
+  else
+    printf '%s\n' "$extras_bad_sum" >&2
+    fail_test 'extras install rejects a checksum mismatch and cleans up its temporary files'
+  fi
+  rm -rf "$fixture"
+fi
 
 if (( failures > 0 )); then
   printf '%s test(s) failed\n' "$failures" >&2

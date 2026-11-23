@@ -3,8 +3,13 @@ set -e
 
 echo "--> macOS settings"
 
-# Hostname
-read -rp "    Computer name (e.g. max-macbook, leave blank to skip): " HOSTNAME
+# Hostname (asked only at a terminal; headless runs keep the current name)
+HOSTNAME=""
+if [ "${DOT_HEADLESS:-}" = 1 ] || [ ! -t 0 ]; then
+  echo "    Skipping the computer name prompt (no interactive terminal)"
+else
+  read -rp "    Computer name (e.g. max-macbook, leave blank to skip): " HOSTNAME
+fi
 if [ -n "$HOSTNAME" ]; then
   sudo scutil --set ComputerName  "$HOSTNAME"
   sudo scutil --set HostName      "$HOSTNAME"

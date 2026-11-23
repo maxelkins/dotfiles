@@ -5,10 +5,12 @@
 #
 # Each command runs in its own fresh login shell (bash -lc) as that user, in a
 # copy of this working tree, so later commands see the PATH hook written by
-# earlier ones. Default: './dot setup' then './dot check'.
+# earlier ones. Default: './dot --headless setup' then './dot --headless check'.
 #
 # Environment: DOT_LINUX_TEST_IMAGE (default ubuntu:24.04),
 #              DOT_LINUX_TEST_PLATFORM (e.g. linux/amd64; default: the daemon's),
+#              DOT_LINUX_TEST_SUDO=password to make the test user's sudo require
+#              a password (default: nopasswd),
 #              DOT_LINUX_TEST_KEEP=1 to keep the container for debugging.
 set -euo pipefail
 
@@ -18,8 +20,17 @@ TEST_USER=agent
 REPO_DIR="/home/${TEST_USER}/dotfiles"
 
 if (( $# == 0 )); then
-  set -- './dot setup' './dot check'
+  set -- './dot --headless setup' './dot --headless check'
 fi
+
+case "${DOT_LINUX_TEST_SUDO:-nopasswd}" in
+  nopasswd) sudo_rule='ALL=(ALL) NOPASSWD:ALL' ;;
+  password) sudo_rule='ALL=(ALL) ALL' ;;
+  *)
+    printf 'DOT_LINUX_TEST_SUDO must be nopasswd or password\n' >&2
+    exit 1
+    ;;
+esac
 
 log() {
   printf '\n==> %s\n' "$*"
@@ -40,14 +51,15 @@ cleanup() {
 }
 trap cleanup EXIT
 
-log "Bootstrapping ${IMAGE} with git and sudo only"
+log "Bootstrapping ${IMAGE} with git and sudo only (sudo: ${DOT_LINUX_TEST_SUDO:-nopasswd})"
 docker exec -e DEBIAN_FRONTEND=noninteractive "$container" bash -euc '
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends git sudo >/dev/null
   useradd --create-home --shell /bin/bash "$1"
-  printf "%s ALL=(ALL) NOPASSWD:ALL\n" "$1" >"/etc/sudoers.d/$1"
+  printf "%s:dot-test\n" "$1" | chpasswd
+  printf "%s %s\n" "$1" "$2" >"/etc/sudoers.d/$1"
   chmod 0440 "/etc/sudoers.d/$1"
-' _ "$TEST_USER"
+' _ "$TEST_USER" "$sudo_rule"
 
 # Stream the working tree (tracked and untracked, not ignored) into the
 # container. Streaming works with remote Docker daemons, unlike bind mounts.
