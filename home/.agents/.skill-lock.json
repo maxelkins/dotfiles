@@ -5,130 +5,148 @@
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "commit": "57217cf86ba38148a57af9e90d14a4c049558330",
       "skillPath": "skills/find-skills/SKILL.md",
       "skillFolderHash": "76a98a285cb0434f3d39e1a873823556330e398b",
       "installedAt": "2026-04-29T09:37:55.946Z",
-      "updatedAt": "2026-10-26T15:32:15.064Z"
+      "updatedAt": "2026-11-23T23:49:32.071Z"
     },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/productivity/grill-me/SKILL.md",
       "skillFolderHash": "3df14e2d3a89459bf300614be9247e3ce74798f8",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.825Z",
-      "updatedAt": "2026-08-26T08:19:04.692Z"
+      "updatedAt": "2026-11-23T23:49:33.762Z"
     },
     "grill-with-docs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
       "skillFolderHash": "eedaf2562c83155115e9c649fa3ecaac2e10e81d",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.825Z",
-      "updatedAt": "2026-08-26T08:19:04.695Z"
+      "updatedAt": "2026-11-23T23:49:35.232Z"
     },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/productivity/handoff/SKILL.md",
       "skillFolderHash": "ce24892bd2d4b9e7fd5ac9b95c03175e18bef388",
+      "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.826Z",
-      "updatedAt": "2026-10-26T15:32:16.852Z"
+      "updatedAt": "2026-11-23T23:49:36.813Z"
     },
     "prototype": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/engineering/prototype/SKILL.md",
       "skillFolderHash": "e41d92e171f074a2b6887d8f6faca4a15c83d1ca",
+      "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.826Z",
-      "updatedAt": "2026-08-28T23:55:55.344Z"
+      "updatedAt": "2026-11-23T23:49:38.388Z"
     },
     "tdd": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/engineering/tdd/SKILL.md",
       "skillFolderHash": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6",
+      "pluginName": "mattpocock-skills",
       "installedAt": "2026-06-16T15:35:55.642Z",
-      "updatedAt": "2026-10-26T15:32:18.364Z"
+      "updatedAt": "2026-11-23T23:49:39.944Z"
     },
     "plannotator-compound": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
       "skillPath": "apps/skills/extra/plannotator-compound/SKILL.md",
-      "skillFolderHash": "e7cb3bf5836705facedb2f94c6648f269d3f0748",
+      "skillFolderHash": "73dcebd303714bcc3fbdffae162068435eb49d97",
       "installedAt": "2026-07-24T12:41:20.961Z",
-      "updatedAt": "2026-07-24T12:41:20.961Z"
+      "updatedAt": "2026-11-23T23:49:47.799Z"
     },
     "plannotator-setup-goal": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
       "skillPath": "apps/skills/extra/plannotator-setup-goal/SKILL.md",
       "skillFolderHash": "29d5d60c2b8a88c1786d7bbdbbfa37e44b64f6a5",
       "installedAt": "2026-07-24T12:41:20.963Z",
-      "updatedAt": "2026-07-24T12:41:20.963Z"
+      "updatedAt": "2026-11-23T23:49:55.729Z"
     },
     "plannotator-visual-explainer": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
       "skillPath": "apps/skills/extra/plannotator-visual-explainer/SKILL.md",
       "skillFolderHash": "48b1d39f317db181b75c8c4dafba6b78bb8f17a4",
       "installedAt": "2026-07-24T12:41:20.964Z",
-      "updatedAt": "2026-10-26T15:32:26.094Z"
+      "updatedAt": "2026-11-23T23:50:08.318Z"
     },
     "herdr": {
       "source": "herdrdev/herdr",
       "sourceType": "github",
       "sourceUrl": "https://github.com/herdrdev/herdr.git",
+      "commit": "e8d7d9705a7a2c89cef4dd42079379f05685af87",
       "skillPath": "skills/herdr/SKILL.md",
       "skillFolderHash": "2be0d86d481d1bb29c62e11ef37b78d27d01b478",
       "installedAt": "2026-08-25T22:34:46.423Z",
-      "updatedAt": "2026-10-26T15:32:33.385Z"
+      "updatedAt": "2026-11-23T23:50:12.252Z"
     },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "28aceb4c9567b985cb47f7db88cf23c9f33af8b8",
+      "skillFolderHash": "f551b6e0d219fdda0b6abf277f8f915b3127d1e9",
+      "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-26T08:19:04.696Z",
-      "updatedAt": "2026-10-26T15:32:19.507Z"
+      "updatedAt": "2026-11-23T23:50:14.012Z"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
       "skillFolderHash": "ad2925850efb8973a72d2e666f7a975f9a2d4a9b",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-26T08:19:04.701Z",
-      "updatedAt": "2026-08-26T08:19:04.701Z"
+      "updatedAt": "2026-11-23T23:50:15.649Z"
     },
     "unslop": {
       "source": "backnotprop/pstack",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/pstack.git",
+      "commit": "d164eec2abdeffe63b2f4cd9fa1426723910a3be",
       "skillPath": "skills/unslop/SKILL.md",
-      "skillFolderHash": "4e572dd70e5557f490e3991c52ea58f0dcee8936",
+      "skillFolderHash": "e1711c7243f1754cf500b697dd55b5151bc9fd06",
       "installedAt": "2026-08-28T13:10:31.736Z",
-      "updatedAt": "2026-10-26T15:32:36.889Z"
+      "updatedAt": "2026-11-23T23:50:17.734Z"
     },
     "visual-explainer": {
       "source": "nicobailon/visual-explainer",
       "sourceType": "github",
       "sourceUrl": "https://github.com/nicobailon/visual-explainer.git",
+      "commit": "9d5f880b7e8e0a9a80c890b8e1bb6918b68481ad",
       "skillPath": "plugins/visual-explainer/SKILL.md",
-      "skillFolderHash": "0c447e2bc5c9c8d885ecc7551906623e88a1ae5e",
+      "skillFolderHash": "5ab3ea281cc21457e33d3ecd9341afdd6bf6ffba",
       "installedAt": "2026-10-23T11:08:13.496Z",
-      "updatedAt": "2026-10-23T11:08:13.496Z"
+      "updatedAt": "2026-11-23T23:50:19.576Z"
     },
     "chrome-extensions": {
       "source": "GoogleChrome/modern-web-guidance",
@@ -138,7 +156,7 @@
       "skillPath": "skills/chrome-extensions/SKILL.md",
       "skillFolderHash": "70ae21f9bbccb4d97c2748dffcc227f9ed07c6cf",
       "installedAt": "2026-11-23T22:46:43.929Z",
-      "updatedAt": "2026-11-23T22:46:43.929Z"
+      "updatedAt": "2026-11-23T23:50:21.250Z"
     },
     "modern-web-guidance": {
       "source": "GoogleChrome/modern-web-guidance",
@@ -148,7 +166,7 @@
       "skillPath": "skills/modern-web-guidance/SKILL.md",
       "skillFolderHash": "94cd548883b7cd735ee0d2bdd723c68a212a0933",
       "installedAt": "2026-11-23T22:46:43.930Z",
-      "updatedAt": "2026-11-23T22:46:43.930Z"
+      "updatedAt": "2026-11-23T23:50:22.682Z"
     }
   },
   "dismissed": {
