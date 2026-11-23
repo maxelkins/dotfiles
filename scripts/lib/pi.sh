@@ -6,14 +6,14 @@ readonly PI_NPM_PACKAGE PI_RUNTIME_DIR
 
 pi_node_version() {
   (
-    cd "$PI_RUNTIME_DIR"
+    cd "$PI_RUNTIME_DIR" || exit
     asdf current nodejs | awk '$1 == "nodejs" { print $2; exit }'
   )
 }
 
 pi_node_dir() {
   (
-    cd "$PI_RUNTIME_DIR"
+    cd "$PI_RUNTIME_DIR" || exit
     asdf where nodejs
   )
 }
