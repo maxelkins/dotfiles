@@ -221,14 +221,18 @@ cmd_apply() {
         shift
       done
       info "Reconciling managed home links with conflict backups"
-      if stow_home "$archive_legacy_skills"; then
-        print_summary "Managed home links were applied successfully"
-        print_next_action "Run: dot check"
-      else
+      if ! stow_home "$archive_legacy_skills"; then
         print_summary "Managed home links could not be applied"
         print_action_required "Fix the error above, then retry: dot apply home"
         return 1
       fi
+      if ! apply_pi_settings; then
+        print_summary "Managed home links were applied; shared Pi settings were not"
+        print_action_required "Fix the error above, then retry: dot apply home"
+        return 1
+      fi
+      print_summary "Managed home links and shared Pi settings were applied successfully"
+      print_next_action "Run: dot check"
       ;;
     macos)
       if ! require_no_args "apply macos" "$@"; then
