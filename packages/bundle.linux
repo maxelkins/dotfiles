@@ -6,7 +6,8 @@
 # Repository clone and updates; asdf plugin add clones plugins with git
 git
 
-# GitHub authentication for agents (gh auth login, gh pr ...)
+# GitHub authentication for agents (gh auth login, gh pr ...), from GitHub's
+# repository in packages/apt-sources.linux
 gh
 
 # dot apply home links home/ with GNU Stow

@@ -703,16 +703,24 @@ extras_output="$(bash -c '
     printf "%s %s %s\n" "$arch" "$(linux_extra_field asdf url)" "$(linux_extra_field asdf "sha256.$arch")"
   done
   printf "%s|%s|%s\n" "$(linux_extra_field asdf binary)" "$(linux_extra_field asdf check)" "$(linux_extra_field asdf expect)"
+  uname() { printf "x86_64\n"; }
+  linux_extra_tracks_latest glab && printf "glab tracks latest\n"
+  LINUX_EXTRA_LATEST="glab 9.9.9"
+  printf "%s\n%s\n" "$(linux_extra_field glab url)" "$(linux_extra_field glab checksums)"
 ' _ "$ROOT" 2>&1)"
 extras_expected='asdf
+glab
 amd64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-amd64.tar.gz 6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d
 arm64 https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-arm64.tar.gz 356e135a608bdfba34038c1f18c4b82434d7b6d546e30dbf372c61baaa2f442c
-asdf|version|v0.20.2'
+asdf|version|v0.20.2
+glab tracks latest
+https://gitlab.com/gitlab-org/cli/-/releases/v9.9.9/downloads/glab_9.9.9_linux_amd64.tar.gz
+https://gitlab.com/gitlab-org/cli/-/releases/v9.9.9/downloads/checksums.txt'
 if [[ "$extras_output" == "$extras_expected" ]]; then
-  pass 'extras table resolves the pinned asdf release for each architecture'
+  pass 'extras table resolves pinned asdf and latest-tracking glab'
 else
   printf 'Expected:\n%s\nGot:\n%s\n' "$extras_expected" "$extras_output" >&2
-  fail_test 'extras table resolves the pinned asdf release for each architecture'
+  fail_test 'extras table resolves pinned asdf and latest-tracking glab'
 fi
 
 if command -v sha256sum >/dev/null 2>&1; then
@@ -737,8 +745,22 @@ sha256.amd64 = $2
 sha256.arm64 = $2
 TABLE
   }
+  write_latest_table() {
+    cat >"$fixture/repo/packages/extras.linux" <<TABLE
+# fixture
+[demo]
+version      = latest
+latest       = https://example.invalid/demo/releases/latest
+url          = https://example.invalid/demo/{version}/demo-{arch}.tgz
+checksums    = https://example.invalid/demo/{version}/checksums.txt
+binary       = demo-{version}-{arch}/bin/demo
+check        = --version
+expect       = {version}
+arch         = amd64=x86_64 arm64=aarch64
+TABLE
+  }
   run_demo() {
-    FIXTURE="$fixture" TMPDIR="$fixture/tmp" bash -c '
+    FIXTURE="$fixture" DEMO_SUMS="${DEMO_SUMS:-}" TMPDIR="$fixture/tmp" bash -c '
       DOT_ROOT="$FIXTURE/repo"
       HOME="$FIXTURE/home"
       source "$1/scripts/lib/common.sh"
@@ -751,7 +773,11 @@ TABLE
           shift
         done
         printf "%s\n" "$url" >>"$FIXTURE/downloads"
-        cp "$FIXTURE/demo.tar.gz" "$out"
+        case "$url" in
+          */latest) printf "https://example.invalid/demo/releases/v1.2.3" ;;
+          */checksums.txt) printf "%s\n" "$DEMO_SUMS" ;;
+          *) cp "$FIXTURE/demo.tar.gz" "$out" ;;
+        esac
       }
       "${@:2}"
     ' _ "$ROOT" "$@" 2>&1
@@ -812,6 +838,33 @@ TABLE
   else
     printf '%s\n' "$extras_bad_sum" >&2
     fail_test 'extras install rejects a checksum mismatch and cleans up its temporary files'
+  fi
+  set +e
+  rm -rf "$fixture/home/.local/bin/demo" "$fixture/downloads"
+  write_latest_table
+  extras_latest="$(DEMO_SUMS="$demo_sha  demo-x86_64.tgz" run_demo linux_install_extras)"
+  extras_latest_status=$?
+  extras_latest_downloads="$(<"$fixture/downloads")"
+  extras_latest_check="$(run_demo linux_check_extras)"
+  extras_latest_check_status=$?
+  rm -rf "$fixture/home/.local/bin/demo"
+  extras_latest_unlisted="$(DEMO_SUMS="$demo_sha  other.tgz" run_demo linux_install_extras)"
+  extras_latest_unlisted_status=$?
+  set -e
+  if (( extras_latest_status == 0 )) && [[ "$extras_latest" == *'Installed demo 1.2.3'* ]] &&
+    [[ "$extras_latest_downloads" == $'https://example.invalid/demo/releases/latest\nhttps://example.invalid/demo/1.2.3/checksums.txt\nhttps://example.invalid/demo/1.2.3/demo-x86_64.tgz' ]] &&
+    (( extras_latest_check_status == 0 )); then
+    pass 'extras install resolves version = latest and verifies against the release checksums'
+  else
+    printf '%s\n%s\n%s\n' "$extras_latest" "$extras_latest_downloads" "$extras_latest_check" >&2
+    fail_test 'extras install resolves version = latest and verifies against the release checksums'
+  fi
+  if (( extras_latest_unlisted_status != 0 )) && [[ "$extras_latest_unlisted" == *'has no SHA-256 for demo-x86_64.tgz'* ]] &&
+    [[ ! -e "$fixture/home/.local/bin/demo" ]]; then
+    pass 'extras install refuses a latest release missing from its checksums file'
+  else
+    printf '%s\n' "$extras_latest_unlisted" >&2
+    fail_test 'extras install refuses a latest release missing from its checksums file'
   fi
   rm -rf "$fixture"
 fi
