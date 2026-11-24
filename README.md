@@ -49,6 +49,7 @@ packages/
   install.linux         Linux tools apt lacks: <command> <install command>
 scripts/macos.sh        macOS preferences (dot macos)
 scripts/dock.sh         Dock layout (dot dock)
+templates/claude/       Claude Code settings copied once, then owned by Claude Code
 templates/pi/           Pi files copied once, then owned by Pi
 ```
 

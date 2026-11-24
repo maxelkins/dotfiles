@@ -317,10 +317,13 @@ check_pi() {
   "${HOME_DIR}/.local/bin/pi" --version >/dev/null 2>&1 || { warn "Pi is not installed; run: dot setup"; return 1; }
 }
 
-# Copy Pi's local config templates once. Pi owns these files afterwards.
-seed_pi_config() {
+# Copy local config templates once. Pi and Claude Code own these files afterwards.
+seed_agent_config() {
   local dir="${HOME}/.pi/agent"
-  mkdir -p "$dir" || return 1
+  mkdir -p "$dir" "${HOME}/.claude" || return 1
+  if [[ ! -e "${HOME}/.claude/settings.json" && ! -L "${HOME}/.claude/settings.json" ]]; then
+    cp "${DOT_ROOT}/templates/claude/settings.json" "${HOME}/.claude/settings.json" || return 1
+  fi
   if [[ ! -e "${dir}/settings.json" && ! -L "${dir}/settings.json" ]]; then
     cp "${DOT_ROOT}/templates/pi/settings.json" "${dir}/settings.json" || return 1
   fi
@@ -480,7 +483,7 @@ link_home() {
     [[ -e "$target" && ! -L "$target" ]] || ln -sfn "../../.agents/skills/$(basename "$source")" "$target"
   done
 
-  seed_pi_config || return 1
+  seed_agent_config || return 1
   mkdir -p "${HOME}/.local/bin"
   ln -sfn "${DOT_ROOT}/dot" "${HOME}/.local/bin/dot"
   ok "Home links point to $HOME_DIR"
