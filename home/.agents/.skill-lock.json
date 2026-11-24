@@ -9,7 +9,7 @@
       "skillPath": "skills/find-skills/SKILL.md",
       "skillFolderHash": "76a98a285cb0434f3d39e1a873823556330e398b",
       "installedAt": "2026-04-29T09:37:55.946Z",
-      "updatedAt": "2026-11-23T23:49:32.071Z"
+      "updatedAt": "2026-11-24T00:03:24.903Z"
     },
     "grill-me": {
       "source": "mattpocock/skills",
@@ -20,7 +20,7 @@
       "skillFolderHash": "3df14e2d3a89459bf300614be9247e3ce74798f8",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.825Z",
-      "updatedAt": "2026-11-23T23:49:33.762Z"
+      "updatedAt": "2026-11-24T00:03:33.647Z"
     },
     "grill-with-docs": {
       "source": "mattpocock/skills",
@@ -31,7 +31,7 @@
       "skillFolderHash": "eedaf2562c83155115e9c649fa3ecaac2e10e81d",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.825Z",
-      "updatedAt": "2026-11-23T23:49:35.232Z"
+      "updatedAt": "2026-11-24T00:03:38.408Z"
     },
     "handoff": {
       "source": "mattpocock/skills",
@@ -42,7 +42,7 @@
       "skillFolderHash": "ce24892bd2d4b9e7fd5ac9b95c03175e18bef388",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.826Z",
-      "updatedAt": "2026-11-23T23:49:36.813Z"
+      "updatedAt": "2026-11-24T00:03:40.667Z"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -53,7 +53,7 @@
       "skillFolderHash": "e41d92e171f074a2b6887d8f6faca4a15c83d1ca",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-05-15T13:29:08.826Z",
-      "updatedAt": "2026-11-23T23:49:38.388Z"
+      "updatedAt": "2026-11-24T00:03:42.881Z"
     },
     "tdd": {
       "source": "mattpocock/skills",
@@ -64,37 +64,37 @@
       "skillFolderHash": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-06-16T15:35:55.642Z",
-      "updatedAt": "2026-11-23T23:49:39.944Z"
+      "updatedAt": "2026-11-24T00:03:44.995Z"
     },
     "plannotator-compound": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
+      "commit": "23c093b61c0a7834536329e826e468f00a4a5a88",
       "skillPath": "apps/skills/extra/plannotator-compound/SKILL.md",
       "skillFolderHash": "73dcebd303714bcc3fbdffae162068435eb49d97",
       "installedAt": "2026-07-24T12:41:20.961Z",
-      "updatedAt": "2026-11-23T23:49:47.799Z"
+      "updatedAt": "2026-11-24T00:03:55.285Z"
     },
     "plannotator-setup-goal": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
+      "commit": "23c093b61c0a7834536329e826e468f00a4a5a88",
       "skillPath": "apps/skills/extra/plannotator-setup-goal/SKILL.md",
       "skillFolderHash": "29d5d60c2b8a88c1786d7bbdbbfa37e44b64f6a5",
       "installedAt": "2026-07-24T12:41:20.963Z",
-      "updatedAt": "2026-11-23T23:49:55.729Z"
+      "updatedAt": "2026-11-24T00:04:06.547Z"
     },
     "plannotator-visual-explainer": {
       "source": "backnotprop/plannotator",
       "sourceType": "github",
       "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "commit": "ed785a090eca35b407d56bc704c5aafd09c128b6",
+      "commit": "23c093b61c0a7834536329e826e468f00a4a5a88",
       "skillPath": "apps/skills/extra/plannotator-visual-explainer/SKILL.md",
       "skillFolderHash": "48b1d39f317db181b75c8c4dafba6b78bb8f17a4",
       "installedAt": "2026-07-24T12:41:20.964Z",
-      "updatedAt": "2026-11-23T23:50:08.318Z"
+      "updatedAt": "2026-11-24T00:04:15.341Z"
     },
     "herdr": {
       "source": "herdrdev/herdr",
@@ -104,7 +104,7 @@
       "skillPath": "skills/herdr/SKILL.md",
       "skillFolderHash": "2be0d86d481d1bb29c62e11ef37b78d27d01b478",
       "installedAt": "2026-08-25T22:34:46.423Z",
-      "updatedAt": "2026-11-23T23:50:12.252Z"
+      "updatedAt": "2026-11-24T00:04:18.537Z"
     },
     "grilling": {
       "source": "mattpocock/skills",
@@ -115,7 +115,7 @@
       "skillFolderHash": "f551b6e0d219fdda0b6abf277f8f915b3127d1e9",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-26T08:19:04.696Z",
-      "updatedAt": "2026-11-23T23:50:14.012Z"
+      "updatedAt": "2026-11-24T00:04:20.356Z"
     },
     "writing-for-agents": {
       "source": "mattpocock/skills",
@@ -126,7 +126,7 @@
       "skillFolderHash": "ad2925850efb8973a72d2e666f7a975f9a2d4a9b",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-08-26T08:19:04.701Z",
-      "updatedAt": "2026-11-23T23:50:15.649Z"
+      "updatedAt": "2026-11-24T00:04:22.281Z"
     },
     "unslop": {
       "source": "backnotprop/pstack",
@@ -136,7 +136,7 @@
       "skillPath": "skills/unslop/SKILL.md",
       "skillFolderHash": "e1711c7243f1754cf500b697dd55b5151bc9fd06",
       "installedAt": "2026-08-28T13:10:31.736Z",
-      "updatedAt": "2026-11-23T23:50:17.734Z"
+      "updatedAt": "2026-11-24T00:04:24.548Z"
     },
     "visual-explainer": {
       "source": "nicobailon/visual-explainer",
@@ -146,7 +146,7 @@
       "skillPath": "plugins/visual-explainer/SKILL.md",
       "skillFolderHash": "5ab3ea281cc21457e33d3ecd9341afdd6bf6ffba",
       "installedAt": "2026-10-23T11:08:13.496Z",
-      "updatedAt": "2026-11-23T23:50:19.576Z"
+      "updatedAt": "2026-11-24T00:04:28.670Z"
     },
     "chrome-extensions": {
       "source": "GoogleChrome/modern-web-guidance",
@@ -156,7 +156,7 @@
       "skillPath": "skills/chrome-extensions/SKILL.md",
       "skillFolderHash": "70ae21f9bbccb4d97c2748dffcc227f9ed07c6cf",
       "installedAt": "2026-11-23T22:46:43.929Z",
-      "updatedAt": "2026-11-23T23:50:21.250Z"
+      "updatedAt": "2026-11-24T00:04:33.887Z"
     },
     "modern-web-guidance": {
       "source": "GoogleChrome/modern-web-guidance",
@@ -166,7 +166,47 @@
       "skillPath": "skills/modern-web-guidance/SKILL.md",
       "skillFolderHash": "94cd548883b7cd735ee0d2bdd723c68a212a0933",
       "installedAt": "2026-11-23T22:46:43.930Z",
-      "updatedAt": "2026-11-23T23:50:22.682Z"
+      "updatedAt": "2026-11-24T00:04:38.890Z"
+    },
+    "plannotator": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "23c093b61c0a7834536329e826e468f00a4a5a88",
+      "skillPath": "apps/skills/core/plannotator/SKILL.md",
+      "skillFolderHash": "8135926cf9f70e55be001cc554fb305a674b557e",
+      "installedAt": "2026-11-24T00:06:15.157Z",
+      "updatedAt": "2026-11-24T00:06:15.157Z"
+    },
+    "plannotator-annotate": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "3276962636d41ad9ad1f440ccf5b4681183bbfc4",
+      "skillPath": "apps/skills/core/plannotator-annotate/SKILL.md",
+      "skillFolderHash": "e02ac47fba36fe22b41c6501575ee5c51ecf3ec8",
+      "installedAt": "2026-11-24T00:08:25.893Z",
+      "updatedAt": "2026-11-24T00:15:14.144Z"
+    },
+    "plannotator-last": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "3276962636d41ad9ad1f440ccf5b4681183bbfc4",
+      "skillPath": "apps/skills/core/plannotator-last/SKILL.md",
+      "skillFolderHash": "ccb34fe1725400970d626d0dafa120bdb88a7aa3",
+      "installedAt": "2026-11-24T00:13:56.912Z",
+      "updatedAt": "2026-11-24T00:15:24.768Z"
+    },
+    "plannotator-review": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "commit": "3276962636d41ad9ad1f440ccf5b4681183bbfc4",
+      "skillPath": "apps/skills/core/plannotator-review/SKILL.md",
+      "skillFolderHash": "da2d79190405f5182a0f9614d7b36b56e23fc339",
+      "installedAt": "2026-11-24T00:14:10.442Z",
+      "updatedAt": "2026-11-24T00:15:30.309Z"
     }
   },
   "dismissed": {
