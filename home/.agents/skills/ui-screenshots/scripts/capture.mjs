@@ -18,6 +18,11 @@ const VIEWPORTS = {
   tablet: { name: 'tablet', width: 768, height: 1024 },
   mobile: { name: 'mobile', width: 390, height: 844 },
 };
+const BROWSERS = {
+  chromium: { name: 'chromium', label: 'Chromium' },
+  firefox: { name: 'firefox', label: 'Firefox' },
+  webkit: { name: 'webkit', label: 'WebKit' },
+};
 const FREEZE_CSS = `*, *::before, *::after {
   animation-duration: 0s !important; animation-delay: 0s !important;
   transition-duration: 0s !important; transition-delay: 0s !important;
@@ -57,6 +62,11 @@ const title = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 const matrixThemes = (spec.themes || ['light']).map((t) => (typeof t === 'string' ? THEMES[t] : t));
 const matrixViewports = (spec.viewports || ['desktop']).map((v) => (typeof v === 'string' ? VIEWPORTS[v] : v));
 
+const matrixBrowsers = (spec.browsers || ['chromium']).map((b) => {
+  if (!BROWSERS[b]) throw new Error(`unknown browser "${b}" (use chromium, firefox or webkit)`);
+  return BROWSERS[b];
+});
+
 function pick(names, matrix, presets, kind) {
   if (!names) return matrix;
   return names.map((n) => {
@@ -85,20 +95,26 @@ function resolvePlaywright() {
 }
 
 const pw = resolvePlaywright();
-const { chromium } = pw.require(pw.path);
-let browser;
-try {
-  browser = await chromium.launch();
-} catch (err) {
-  const core = createRequire(pw.path).resolve('playwright-core/package.json');
-  const cli = path.join(path.dirname(core), 'cli.js');
-  console.error(`${err.message.split('\n')[0]}\nInstall the matching browser with:\n  node ${cli} install chromium`);
-  process.exit(1);
+const playwright = pw.require(pw.path);
+const browsers = new Map();
+
+async function getBrowser(engine) {
+  if (!browsers.has(engine)) {
+    try {
+      browsers.set(engine, await playwright[engine].launch());
+    } catch (err) {
+      const core = createRequire(pw.path).resolve('playwright-core/package.json');
+      const cli = path.join(path.dirname(core), 'cli.js');
+      console.error(`${err.message.split('\n')[0]}\nInstall the matching browser with:\n  node ${cli} install ${engine}`);
+      process.exit(1);
+    }
+  }
+  return browsers.get(engine);
 }
 
 // ---- capture ----------------------------------------------------------
 
-async function shoot(base, shot, theme, viewport, file) {
+async function shoot(browser, base, shot, theme, viewport, file) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: spec.deviceScaleFactor || 1,
@@ -154,7 +170,8 @@ async function act(page, a) {
 
 // ---- diff (runs in the browser, so no image libraries are needed) ----
 
-const diffPage = await browser.newPage();
+// The diff only compares PNGs, so it always runs on Chromium whatever engines were shot.
+const diffPage = await (await getBrowser('chromium')).newPage();
 
 async function diff(beforeFile, afterFile, diffFile) {
   const result = await diffPage.evaluate(
@@ -233,35 +250,48 @@ let failed = false;
 
 for (const shot of spec.shots) {
   const themes = pick(shot.themes, matrixThemes, THEMES, 'theme');
+  const engines = pick(shot.browsers, matrixBrowsers, BROWSERS, 'browser');
   const viewports = pick(shot.viewports, matrixViewports, VIEWPORTS, 'viewport');
   const entry = { name: shot.name, caption: shot.caption, path: shot.path, variants: [] };
-  for (const theme of themes) {
-    for (const viewport of viewports) {
-      const label = [themes.length > 1 && title(theme.name), viewports.length > 1 && title(viewport.name)]
-        .filter(Boolean)
-        .join(' · ');
-      const stem = [slug(shot.name), themes.length > 1 && slug(theme.name), viewports.length > 1 && slug(viewport.name)]
-        .filter(Boolean)
-        .join('-');
-      const files = { before: `${stem}-before.png`, after: `${stem}-after.png`, diff: `${stem}-diff.png` };
-      const variant = { label, theme: theme.name, viewport: viewport.name, ...files };
-      try {
-        await shoot(spec.before, shot, theme, viewport, path.join(out, files.before));
-        await shoot(spec.after, shot, theme, viewport, path.join(out, files.after));
-        Object.assign(variant, await diff(...Object.values(files).map((f) => path.join(out, f))));
-      } catch (err) {
-        failed = true;
-        variant.error = err.message.split('\n')[0];
+  for (const engine of engines) {
+    for (const theme of themes) {
+      for (const viewport of viewports) {
+        const label = [
+          engines.length > 1 && engine.label,
+          themes.length > 1 && title(theme.name),
+          viewports.length > 1 && title(viewport.name),
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        const stem = [
+          slug(shot.name),
+          engines.length > 1 && slug(engine.name),
+          themes.length > 1 && slug(theme.name),
+          viewports.length > 1 && slug(viewport.name),
+        ]
+          .filter(Boolean)
+          .join('-');
+        const files = { before: `${stem}-before.png`, after: `${stem}-after.png`, diff: `${stem}-diff.png` };
+        const variant = { label, browser: engine.name, theme: theme.name, viewport: viewport.name, ...files };
+        try {
+          const browser = await getBrowser(engine.name);
+          await shoot(browser, spec.before, shot, theme, viewport, path.join(out, files.before));
+          await shoot(browser, spec.after, shot, theme, viewport, path.join(out, files.after));
+          Object.assign(variant, await diff(...Object.values(files).map((f) => path.join(out, f))));
+        } catch (err) {
+          failed = true;
+          variant.error = err.message.split('\n')[0];
+        }
+        entry.variants.push(variant);
+        const status = variant.error ? `ERROR ${variant.error}` : `${variant.changedPercent}% changed`;
+        console.error(`${shot.name}${label ? ` [${label}]` : ''}: ${status}`);
       }
-      entry.variants.push(variant);
-      const status = variant.error ? `ERROR ${variant.error}` : `${variant.changedPercent}% changed`;
-      console.error(`${shot.name}${label ? ` [${label}]` : ''}: ${status}`);
     }
   }
   entry.changed = entry.variants.some((v) => v.changedPixels > 0);
   manifest.shots.push(entry);
 }
-await browser.close();
+for (const b of browsers.values()) await b.close();
 
 // ---- markdown ---------------------------------------------------------
 
