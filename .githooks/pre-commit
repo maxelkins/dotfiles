@@ -4,6 +4,23 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# Secrets first: a leaked value matters more than formatting.
+if [[ "${SKIP_GITLEAKS:-0}" == 1 ]]; then
+  printf 'pre-commit: SKIP_GITLEAKS=1, not scanning for secrets\n' >&2
+elif ! command -v gitleaks >/dev/null 2>&1; then
+  printf 'pre-commit: gitleaks is not installed; run: dot setup\n' >&2
+  exit 1
+elif ! gitleaks git --staged --redact --verbose --no-banner --log-level warn .; then
+  cat >&2 <<'MSG'
+pre-commit: Gitleaks found a possible secret in the staged changes (above).
+  Real secret: unstage it, move it to an ignored file or 1Password, and rotate
+  it if it was ever pushed or shared.
+  False positive: end that line with a gitleaks:allow comment. In files
+  without comments, see README, "Secrets".
+MSG
+  exit 1
+fi
+
 if [[ -x node_modules/.bin/prettier ]]; then
   prettier_command=(node_modules/.bin/prettier)
 elif command -v prettier >/dev/null 2>&1; then
