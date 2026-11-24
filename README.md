@@ -79,13 +79,34 @@ npx skills add <owner/repo> --global --skill <name> --agent pi claude-code
 
 The CLI updates the lock file through its link, so commit the change.
 
+## Secrets
+
+This repository is public. Tracked files may hold 1Password references such as `op://vault/item/field`, never the values they resolve to. Put real values in `~/.zshrc.local` or another ignored file, or load them with `op run`. When a tool writes credentials or sessions beside tracked config, add a narrow `.gitignore` rule for them.
+
+[Gitleaks](https://github.com/gitleaks/gitleaks) checks this in two places:
+
+- **Pre-commit hook.** Scans the staged changes and blocks the commit on a finding. Setup installs Gitleaks and the hook.
+- **CI.** Scans every commit in the history on each push and pull request, so commits made without the hook are caught too. CI is the real gate; the hook can be skipped.
+
+Output is redacted. To see a finding yourself:
+
+```sh
+gitleaks git --staged --redact --verbose .   # what the hook runs
+gitleaks git --redact --verbose .            # what CI runs
+```
+
+For a false positive, end the line with a `gitleaks:allow` comment. Where a file can't hold a comment, add the finding's exact fingerprint from the CI log to `.gitleaksignore`, with a note saying why. Never allowlist a whole file or rule. `SKIP_GITLEAKS=1 git commit` skips the local scan when you have to; CI still runs.
+
+If a real secret is committed, **rotate or revoke it first**, even if it was never pushed. Then remove it from history if you need to. Forks, clones, and caches can keep the old value, so a rewritten history does not make it safe again.
+
 ## Development
 
 ```sh
-npm install           # also points Git at .githooks (Prettier on commit)
+npm install           # also points Git at .githooks (Gitleaks and Prettier on commit)
 npm run format:check
 npm run typecheck:pi
-shellcheck dot scripts/*.sh
+shellcheck dot scripts/*.sh tests/*.sh
+bash tests/secret-scanning.sh
 ```
 
 CI runs the same checks.

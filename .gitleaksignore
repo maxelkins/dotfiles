@@ -1,0 +1,6 @@
+# Reviewed Gitleaks false positives. List exact fingerprints only, never paths
+# or rules, so a real secret in the same file is still caught.
+
+# Web Crypto algorithm names in a vendored skill guide (since removed).
+3b8cbf54cdbb63dbc1a83d0336400fe0edfb6782:home/.agents/skills/modern-web-guidance/guides/security/client-side-encryption.md:generic-api-key:187
+3b8cbf54cdbb63dbc1a83d0336400fe0edfb6782:home/.agents/skills/modern-web-guidance/guides/security/client-side-encryption.md:generic-api-key:201

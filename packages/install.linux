@@ -7,4 +7,6 @@
 asdf    install_release https://github.com/asdf-vm/asdf/releases/latest https://github.com/asdf-vm/asdf/releases/download/v{version}/asdf-v{version}-linux-{arch}.tar.gz asdf
 gh      install_release https://github.com/cli/cli/releases/latest https://github.com/cli/cli/releases/download/v{version}/gh_{version}_linux_{arch}.tar.gz gh_{version}_linux_{arch}/bin/gh
 glab    install_release https://gitlab.com/gitlab-org/cli/-/releases/permalink/latest https://gitlab.com/gitlab-org/cli/-/releases/v{version}/downloads/glab_{version}_linux_{arch}.tar.gz bin/glab
+# gitleaks names its assets x64/arm64, not amd64/arm64
+gitleaks install_release https://github.com/gitleaks/gitleaks/releases/latest "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_linux_$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/').tar.gz" gitleaks
 claude  curl -fsSL https://claude.ai/install.sh | bash

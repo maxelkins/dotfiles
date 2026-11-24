@@ -24,6 +24,32 @@ jobs:
       - name: Typecheck Pi extensions
         run: npm run typecheck:pi
       - name: Check shell syntax
-        run: for f in dot scripts/*.sh .githooks/pre-commit home/.local/bin/pi; do bash -n "$f"; done
+        run: for f in dot scripts/*.sh tests/*.sh .githooks/pre-commit home/.local/bin/pi; do bash -n "$f"; done
       - name: Run shellcheck
-        run: shellcheck -S warning dot scripts/*.sh home/.local/bin/pi
+        run: shellcheck -S warning dot scripts/*.sh home/.local/bin/pi tests/*.sh
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Gitleaks
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  ${archive}" | sha256sum -c -
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$archive" -C "$HOME/.local/bin" gitleaks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # Every commit, so commits made without the local hook are caught too.
+      # --redact keeps any value out of the public log.
+      - name: Scan full history
+        run: gitleaks git --redact --verbose --no-banner .
+      - name: Test the pre-commit hook
+        run: bash tests/secret-scanning.sh
