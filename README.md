@@ -81,7 +81,9 @@ The CLI updates the lock file through its link, so commit the change.
 
 ## Secrets
 
-This repository is public. Tracked files may hold 1Password references such as `op://vault/item/field`, never the values they resolve to. Put real values in `~/.zshrc.local` or another ignored file, or load them with `op run`. When a tool writes credentials or sessions beside tracked config, add a narrow `.gitignore` rule for them.
+This repository is public. Tracked files may hold 1Password references such as `op://vault/item/field`, never the values they resolve to. Put real values in `~/.zshrc.local` or another ignored file, or load them with `op run`. When a tool writes credentials or sessions beside tracked config, add a narrow `.gitignore` rule for them. `.gitignore` also ignores private keys, `.env` files, and credential exports anywhere in the repo.
+
+Pi writes its auth, sessions, and models beside the config in `home/.pi/agent/`, so `.gitignore` treats that folder as an allowlist: only the listed files, `themes/*.json`, and `extensions/**/*.ts` are tracked. To publish another Pi file, add it to the list after checking that it holds no secrets.
 
 [Gitleaks](https://github.com/gitleaks/gitleaks) checks this in two places:
 
