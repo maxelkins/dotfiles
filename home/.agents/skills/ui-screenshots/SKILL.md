@@ -23,7 +23,9 @@ description: 'Before/after/diff screenshots of a web UI change, captured with Pl
    - colours, theme tokens, or a dark-mode rule → `"themes": ["light", "dark"]`
    - layout, breakpoints, or responsive rules → `"viewports": ["desktop", "mobile"]`
 
-   Each variant adds three images, so the matrix goes only where it shows something new.
+   - a bug that only shows in one engine (Safari layout, Firefox form controls) → `"browsers": ["webkit"]` or `["chromium", "webkit"]`. A shot with one non-default engine should say so in its `name` or `caption`, for example "Radio group after failed validation (WebKit)", so the PR makes it obvious.
+
+   Each variant adds three images, so the matrix goes only where it shows something new. Every added engine multiplies the images again, so use `browsers` only for engine-specific bugs.
 
 4. **Capture.** Write the spec (below) beside the output directory, then run from the project root so the project's own Playwright is used:
 
@@ -43,7 +45,7 @@ Hand `screenshots.md` to the user, or to the `pr-screenshots` skill for a pull r
 
 `$OUT` defaults to `$TMPDIR/ui-screenshots/<project>-<timestamp>/`, outside the repo; a path inside the repo must be git-ignored first. A rerun replaces the files the script generates and keeps any others.
 
-- `<shot>[-<theme>][-<viewport>]-{before,after,diff}.png`
+- `<shot>[-<browser>][-<theme>][-<viewport>]-{before,after,diff}.png`
 - `screenshots.md`: the tables, with `./` image paths, usable directly as a `gh --body-file`.
 - `attach.txt`: exactly the images `screenshots.md` references, one per line.
 - `manifest.json`: every shot and variant with `changedPercent`, `sizeChanged`, or `error`.
@@ -79,6 +81,8 @@ Several variants, one row each, labelled with only the parts that vary:
 | Dark · Mobile | ![Before](./<shot>-dark-mobile-before.png) | ![After](./<shot>-dark-mobile-after.png) | ![Diff](./<shot>-dark-mobile-diff.png) |
 ```
 
+With several engines the label and stem lead with the engine, for example `WebKit · Dark` and `<shot>-webkit-dark-desktop-before.png`. As with themes and viewports, the engine appears only when more than one is in play for that shot; a WebKit-only shot keeps the plain names.
+
 A variant with no change keeps its row with `_No visual change_` in the Diff cell. Images use `![alt](./file.png)` because that is the form `gh --attach` rewrites to uploaded URLs.
 
 ## Spec
@@ -106,7 +110,7 @@ Top level:
 
 - `before`, `after` (required): base URLs; each shot's `path` is appended as-is.
 - `shots` (required), `out`.
-- `themes`, `viewports`: the default matrix for every shot. Default `["light"]` and `["desktop"]`.
+- `themes`, `viewports`, `browsers`: the default matrix for every shot. Default `["light"]`, `["desktop"]` and `["chromium"]`. `browsers` accepts only `chromium`, `firefox` and `webkit`; anything else is an error.
 - `mask`: selectors painted over in both images.
 - `deviceScaleFactor` (default 1; 2 for fine detail), `fullPage` (default false).
 - `localStorage`, `initScript`: applied before page scripts in every variant.
@@ -115,7 +119,7 @@ Top level:
 Per shot:
 
 - `name` (required): the heading and file-name stem.
-- `path` (default `/`), `caption`, `fullPage`, `mask`, `themes`, `viewports`.
+- `path` (default `/`), `caption`, `fullPage`, `mask`, `themes`, `viewports`, `browsers` (overrides the top-level list).
 - `selector`: clip to its **first** match; select a container to capture several items.
 - `actions`: run in order after load, identically on both servers. Each is one of `{"click": sel}`, `{"hover": sel}`, `{"fill": [sel, text]}`, `{"press": "Escape"}`, `{"waitFor": sel}`, `{"wait": ms}`, `{"eval": "js"}`.
 - `waitFor` (selector), `wait` (ms): before the screenshot.
@@ -124,8 +128,14 @@ Themes: `"light"` and `"dark"` emulate `prefers-color-scheme`. A site with a man
 
 Viewports: `desktop` 1280×800, `tablet` 768×1024, `mobile` 390×844, or `{ "name", "width", "height" }`.
 
+Browsers: `chromium`, `firefox`, `webkit`. The diff always runs on Chromium, since it only compares PNGs. Caveats:
+
+- Playwright's WebKit on Linux is not Safari. Say so wherever a WebKit-only shot is the evidence.
+- Firefox does not support `isMobile` or `hasTouch`; the script sets only width and height, but any device emulation added later must allow for that.
+- Fonts and antialiasing differ between engines, so compare only the same engine before and after, never across engines. The matrix guarantees this.
+
 The script already freezes animations and hides the Astro, Vite, Next.js and webpack dev overlays. `mask` cannot reach inside shadow DOM, so remove any other overlay with `{"eval": "document.querySelector('<host>')?.remove()"}`.
 
 ## Running node
 
-When the project has no Playwright, the script installs it once into `${XDG_CACHE_HOME:-~/.cache}/ui-screenshots`, and prints the install command if Chromium is missing. Under asdf, `node` outside a project fails with "No version is set": run from the project root.
+When the project has no Playwright, the script installs it once into `${XDG_CACHE_HOME:-~/.cache}/ui-screenshots`, and prints the install command (`... install <engine>`) for the engine that is missing. Under asdf, `node` outside a project fails with "No version is set": run from the project root.
