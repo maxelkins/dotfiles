@@ -350,7 +350,7 @@ locked_skills() {
   "${node_dir}/bin/node" -e '
     const lock = require(process.argv[1]).skills;
     for (const [name, s] of Object.entries(lock)) {
-      const dir = (s.skillPath || "").replace(/\/[^/]*$/, "");
+      const dir = (s.skillPath || "").includes("/") ? s.skillPath.replace(/\/[^/]*$/, "") : "";
       const install = dir && !dir.startsWith("skills/") ? `${s.source}/${dir}` : s.sourceUrl || s.source;
       console.log(name + "\t" + install);
     }
@@ -431,16 +431,20 @@ link_target() {
 # that looks installed but is not. Drop links into this repo whose target is
 # gone. Links to anywhere else are left alone.
 prune_links() {
-  local dir target link
-  while IFS= read -r dir; do
-    target="${HOME}/${dir#"${HOME_DIR}"/}"
-    [[ -d "$target" ]] || continue
-    while IFS= read -r link; do
-      case "$(link_target "$link")" in
-        "${HOME_DIR}"/*) rm -f "$link" && warn "Removed stale link ~/${link#"${HOME}"/}" ;;
-      esac
-    done < <(find "$target" -type l -xtype l -print 2>/dev/null)
-  done < <(find "$HOME_DIR" -mindepth 1 -type d -print)
+  local dir link
+  while IFS= read -r link; do
+    [[ -e "$link" ]] && continue
+    case "$(link_target "$link")" in
+      "${HOME_DIR}"/*) rm -f "$link" && warn "Removed stale link ~/${link#"${HOME}"/}" ;;
+    esac
+  done < <(
+    # $HOME itself, then each top-level folder of home/ once, all the way down.
+    find "$HOME" -mindepth 1 -maxdepth 1 -type l -print
+    while IFS= read -r dir; do
+      is_macos || [[ "$dir" != "${HOME_DIR}/Library" ]] || continue
+      [[ -d "${HOME}/${dir#"${HOME_DIR}"/}" ]] && find "${HOME}/${dir#"${HOME_DIR}"/}" -type l -print
+    done < <(find "$HOME_DIR" -mindepth 1 -maxdepth 1 -type d -print)
+  )
 }
 
 link_home() {
