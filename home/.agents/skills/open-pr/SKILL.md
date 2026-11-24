@@ -39,4 +39,4 @@ _To be added._
 - **Attribution.** Exactly these two lines: no tool name, no trailing `>` line, no trailing spaces.
 - **Fixes line.** Drop it when there is no issue.
 - **Changes.** Match the granularity of the commits, not the diff. Unsure what a bullet should say: read `git log`.
-- **Screenshots.** Include the section only when the change is visible: UI, rendered output, or anything a reviewer would want to see. For other changes, end the body after Changes. When included, keep the placeholder; the user usually adds images by hand. Given image files, replace it with `![alt](./file.png)` references and pass each file with `--attach './file.png#alt'`.
+- **Screenshots.** Include the section only when the change is visible: UI, rendered output, or anything a reviewer would want to see. For other changes, end the body after Changes. When included, fill it with the `pr-screenshots` skill, which also replaces step 5's create command. Given image files instead, replace the placeholder with `![alt](./file.png)` references and pass each file with `--attach './file.png#alt'`. Keep the placeholder only when the app cannot run here.
