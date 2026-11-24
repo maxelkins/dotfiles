@@ -1,0 +1,11 @@
+{
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "theme": "auto",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  }
+}
