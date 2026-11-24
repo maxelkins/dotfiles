@@ -340,13 +340,20 @@ skills_cli() {
   PATH="${node_dir}/bin:${PATH}" npx -y skills@latest "$@"
 }
 
-# Print "<name> <source url>" for each skill in the lock file.
+# Print "<name>\t<install source>" for each skill in the lock file. A skill kept
+# outside the repository's default skills/ folder is installed from that folder,
+# because the same name can exist once per host (apps/kiro-cli, apps/qwen-code).
 locked_skills() {
   local node_dir
   node_dir="$(pi_node_dir)" || return 1
+  # shellcheck disable=SC2016 # template literal, not shell expansion
   "${node_dir}/bin/node" -e '
     const lock = require(process.argv[1]).skills;
-    for (const [name, s] of Object.entries(lock)) console.log(name, s.sourceUrl || s.source);
+    for (const [name, s] of Object.entries(lock)) {
+      const dir = (s.skillPath || "").replace(/\/[^/]*$/, "");
+      const install = dir && !dir.startsWith("skills/") ? `${s.source}/${dir}` : s.sourceUrl || s.source;
+      console.log(name + "\t" + install);
+    }
   ' "${HOME_DIR}/.agents/.skill-lock.json"
 }
 
@@ -354,7 +361,7 @@ install_skills() {
   step "Skills"
   local skills name source failed=0
   skills="$(locked_skills)" || { err "Could not read the skill lock file"; return 1; }
-  while read -r name source; do
+  while IFS=$'\t' read -r name source; do
     if [[ -f "${HOME}/.agents/skills/${name}/SKILL.md" ]]; then
       ok "$name"
       continue
@@ -403,6 +410,39 @@ backup_path() {
   warn "Moved ~/${path#"${HOME}"/} to $DOT_BACKUP_DIR"
 }
 
+# Absolute path a link points at, resolved without requiring the target to exist.
+link_target() {
+  local dir target part out=""
+  dir="$(cd "$(dirname "$1")" && pwd -P)" || return 1
+  target="$(readlink "$1")" || return 1
+  [[ "$target" == /* ]] || target="${dir}/${target}"
+  local IFS=/
+  for part in $target; do
+    case "$part" in
+      ''|.) ;;
+      ..) out="${out%/*}" ;;
+      *) out="${out}/${part}" ;;
+    esac
+  done
+  printf '%s\n' "${out:-/}"
+}
+
+# A deleted repo file leaves its Stow link behind, pointing at nothing: a path
+# that looks installed but is not. Drop links into this repo whose target is
+# gone. Links to anywhere else are left alone.
+prune_links() {
+  local dir target link
+  while IFS= read -r dir; do
+    target="${HOME}/${dir#"${HOME_DIR}"/}"
+    [[ -d "$target" ]] || continue
+    while IFS= read -r link; do
+      case "$(link_target "$link")" in
+        "${HOME_DIR}"/*) rm -f "$link" && warn "Removed stale link ~/${link#"${HOME}"/}" ;;
+      esac
+    done < <(find "$target" -type l -xtype l -print 2>/dev/null)
+  done < <(find "$HOME_DIR" -mindepth 1 -type d -print)
+}
+
 link_home() {
   step "Links"
   have stow || { err "GNU Stow is required; run: dot setup"; return 1; }
@@ -426,6 +466,7 @@ link_home() {
 
   local ignores=()
   while IFS= read -r source; do ignores+=("$source"); done < <(stow_ignores)
+  prune_links
   stow --restow --no-folding "${ignores[@]}" --dir "$DOT_ROOT" --target "$HOME" home || return 1
 
   # Claude Code reads ~/.claude/skills; point it at your own skills too.
