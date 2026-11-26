@@ -22,17 +22,6 @@
       "installedAt": "2026-05-15T13:29:08.825Z",
       "updatedAt": "2026-11-24T10:20:50.333Z"
     },
-    "grill-with-docs": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
-      "skillFolderHash": "eedaf2562c83155115e9c649fa3ecaac2e10e81d",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-05-15T13:29:08.825Z",
-      "updatedAt": "2026-11-24T10:20:50.334Z"
-    },
     "handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -241,50 +230,6 @@
       "installedAt": "2026-11-24T10:20:50.332Z",
       "updatedAt": "2026-11-24T10:20:50.332Z"
     },
-    "domain-modeling": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "skillFolderHash": "ea30ee454ba264543dbe40737973b1a5afb9f0e6",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.332Z",
-      "updatedAt": "2026-11-24T10:20:50.332Z"
-    },
-    "implement": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/implement/SKILL.md",
-      "skillFolderHash": "4804b466ab26c9b9d8d42917547db133d1f20a9f",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.335Z",
-      "updatedAt": "2026-11-24T10:20:50.335Z"
-    },
-    "implement-spec": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/implement-spec/SKILL.md",
-      "skillFolderHash": "407c196f5c88af53c71efc8f31ee37c02dbb12e7",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.336Z",
-      "updatedAt": "2026-11-24T10:20:50.336Z"
-    },
-    "improve-codebase-architecture": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
-      "skillFolderHash": "587147dd230da299cc5e84971cb0a33f6676f8a6",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.336Z",
-      "updatedAt": "2026-11-24T10:20:50.336Z"
-    },
     "pr": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -318,17 +263,6 @@
       "installedAt": "2026-11-24T10:20:50.338Z",
       "updatedAt": "2026-11-24T10:20:50.338Z"
     },
-    "setup-matt-pocock-skills": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
-      "skillFolderHash": "b644b684781fd5baae57f6be000a180a4d4448d7",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.339Z",
-      "updatedAt": "2026-11-24T10:20:50.339Z"
-    },
     "teach": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -340,39 +274,6 @@
       "installedAt": "2026-11-24T10:20:50.340Z",
       "updatedAt": "2026-11-24T10:20:50.340Z"
     },
-    "to-spec": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/to-spec/SKILL.md",
-      "skillFolderHash": "136b9651747cfccbfbb7c50a6b0dfb757e7547d2",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.340Z",
-      "updatedAt": "2026-11-24T10:20:50.340Z"
-    },
-    "to-tickets": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/to-tickets/SKILL.md",
-      "skillFolderHash": "2dee20ad722a31c04ededf9f2d83842473573045",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.341Z",
-      "updatedAt": "2026-11-24T10:20:50.341Z"
-    },
-    "triage": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/triage/SKILL.md",
-      "skillFolderHash": "4cb951d62ecccaed601cdc5f9a1b7b3d8a799635",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.341Z",
-      "updatedAt": "2026-11-24T10:20:50.341Z"
-    },
     "wait-what": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -380,17 +281,6 @@
       "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "skillPath": "skills/productivity/wait-what/SKILL.md",
       "skillFolderHash": "c8b050e6b8c711be1a9008ceacb2126914f0763e",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-11-24T10:20:50.342Z",
-      "updatedAt": "2026-11-24T10:20:50.342Z"
-    },
-    "wayfinder": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
-      "skillPath": "skills/engineering/wayfinder/SKILL.md",
-      "skillFolderHash": "25da74eadc3e388b2f2a2cc716f3d44b2fb9dfe0",
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-11-24T10:20:50.342Z",
       "updatedAt": "2026-11-24T10:20:50.342Z"
