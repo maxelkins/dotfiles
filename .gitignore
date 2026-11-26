@@ -48,3 +48,6 @@ id_ecdsa*
 id_ed25519*
 credentials*.json
 home/.config/*/secrets.*
+
+# Claude Code agent worktrees.
+.claude/worktrees/
